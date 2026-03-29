@@ -2,7 +2,6 @@
 name: autolab
 description: Use this skill when a user provides a paper source file (e.g., main.tex) and wants to implement the method, run experiments, or perform ablations. Guides phased execution from paper reading to final evaluation with mandatory user confirmation at each phase.
 ---
-
 # AutoLab v0.2.0
 
 Paper-driven deep learning experiment workflow with phase-gated execution and mandatory user confirmation.
@@ -10,6 +9,7 @@ Paper-driven deep learning experiment workflow with phase-gated execution and ma
 ## When To Use
 
 Use when the user:
+
 - provides `main.tex` or another LaTeX paper source
 - asks to implement a paper, reproduce experiments, or run ablations
 - needs a structured experiment plan tied to an existing codebase
@@ -29,16 +29,19 @@ autolab is part of a three-skill pipeline driven by `main.tex`:
 ## Core Principles
 
 ### 1. Phase-Gated Execution
+
 - Each phase has three mandatory steps: Execute → Document → User Confirm
 - No phase can start until the previous phase's user confirmation is received
 - AI cannot skip ahead or work in parallel across phases
 
 ### 2. Documentation-Driven
+
 - Every phase produces a `phase_X_{name}_report.md` file
 - Reports contain concrete evidence (file paths, line numbers, code snippets, output logs)
 - Reports are the source of truth, not AI memory
 
 ### 3. User Confirmation Gates
+
 - After each phase, AI MUST present the report and ask: "Phase X complete. Please review `phase_X_{name}_report.md`. Confirm to proceed or request changes."
 - AI MUST wait for explicit user response ("confirm", "ok", "proceed", or specific feedback)
 - If user requests changes, return to that phase's execution step
@@ -56,6 +59,7 @@ Extract:
 **Structure:** section titles with one-line scope each
 
 **Innovation modules:** for each Method subsection (skip generic ones like Overview, Preliminaries, Background, Implementation Details, Training Objective):
+
 - Name, purpose, level (input / feature / loss)
 - Key equations (verbatim LaTeX)
 - Where it connects to the baseline
@@ -68,6 +72,7 @@ Extract:
 ### Step 2: Confirm with the user
 
 Before generating docs, confirm:
+
 1. Baseline codebase path
 2. Dataset path
 3. Runtime environment (conda env, etc.)
@@ -144,61 +149,56 @@ Phased checklist with user confirmation gates:
 - All reports saved to experiment_docs/reports/
 
 ## Phase 1: Generate Framework Figure (paperbanana)
+
 ### 1.1 Execute
-- [ ] Read `main.tex` and extract:
-  - `\begin{abstract}...\end{abstract}` → abstract text
-  - `\section{Method}` through next `\section` → methodology text
-- [ ] Concatenate into content: `"Abstract:\n{abstract}\n\nMethodology:\n{method}"`
-- [ ] Write to `paper_figures/method_content.txt`
-- [ ] Launch paperbanana web UI:
 
-```bash
-mkdir -p paper_figures
-cd /home/hz/JUZHEN_ABLATION/PaperBanana-meng
-bash scripts/run_demo.sh
-```
-
-- [ ] If running on a remote server, create a tunnel from the local machine:
-
-```bash
-ssh -L 8501:localhost:8501 user@remote-server
-```
-
-- [ ] Open `http://localhost:8501` in a browser
-- [ ] Fill the UI with:
-  - `Method Content` = abstract + method text from `paper_figures/method_content.txt`
-  - `Caption` = overview-figure intent for the paper
-  - `num_candidates` = `3` (cost consideration)
-  - `max_critic_rounds` = `2` (cost consideration)
-- [ ] Generate candidates through the PaperBanana web UI
-- [ ] Download and save the selected framework figure to `paper_figures/`
+- [ ] Check if `workflow_status.json` exists and read paperbanana status
+- [ ] If paperbanana status is "completed" and user_confirmed is true:
+  - Skip to 1.2 with note: "PaperBanana already completed"
+- [ ] Otherwise:
+  - [ ] Read `main.tex` and extract:
+    - `\begin{abstract}...\end{abstract}` → abstract text
+    - `\section{Method}` through next `\section` → methodology text
+  - [ ] Concatenate into content: `"Abstract:\n{abstract}\n\nMethodology:\n{method}"`
+  - [ ] Write to `paper_figures/method_content.txt`
+  - [ ] Ask user: "Do you need to generate the framework figure? (yes/no)"
+    - If **no**: Update workflow_status.json with paperbanana status="skipped", skip to 1.2
+    - If **yes**: Invoke `paperbanana-0.1.0` skill using Skill tool
 
 ### 1.2 Document
-- [ ] Create `phase_1_paperbanana_report.md` with:
-  - Generated image paths
-  - API provider and models used
-  - UI parameters used (num_candidates, max_critic_rounds)
-  - Generation time
-  - Image preview or description
+
+- [ ] Create `experiment_docs/reports/phase_1_paperbanana_report.md` with:
+  - If paperbanana was already completed: reference to existing `paperbanana_completion_report.md`
+  - If user skipped: "User confirmed framework figure not needed"
+  - If paperbanana just executed: Summary of execution result
 
 ### 1.3 User Confirm (BLOCKING)
-- [ ] Present generated images to user
-- [ ] Ask: "Phase 1 complete. Framework figure generated. Please review images in `paper_figures/`. Reply 'confirm' to proceed to implementation, or provide feedback to regenerate."
-- [ ] If user requests changes:
-  - [ ] Ask for specific feedback on caption, parameters, or style
-  - [ ] Rerun paperbanana web UI with revised parameters
-  - [ ] Return to 1.3
-- [ ] Wait for explicit confirmation
 
-Checkpoint: User confirmed figure, proceed to Phase 2
+- [ ] Present the report to user
+- [ ] Ask: "Phase 1 complete. Reply 'confirm' to proceed to implementation."
+- [ ] Wait for explicit confirmation
+- [ ] Update `workflow_status.json`:
+  ```json
+  "autolab": {
+    "status": "in_progress",
+    "current_phase": "phase_2_setup",
+    "report": "experiment_docs/reports/phase_1_paperbanana_report.md",
+    "timestamp": "<ISO8601>"
+  }
+  ```
+
+Checkpoint: User confirmed, proceed to Phase 2
 
 ## Phase 2: Setup
+
 ### 2.1 Execute
+
 - [ ] Confirm baseline path
 - [ ] Confirm dataset path
 - [ ] Confirm environment and weights
 
 ### 2.2 Document
+
 - [ ] Create `phase_2_setup_report.md` with:
   - Baseline path and key files identified
   - Dataset path and sample count
@@ -207,6 +207,7 @@ Checkpoint: User confirmed figure, proceed to Phase 2
   - Any blockers or missing dependencies
 
 ### 2.3 User Confirm (BLOCKING)
+
 - [ ] Present report to user
 - [ ] Wait for explicit confirmation
 - [ ] If changes requested, return to 2.1
@@ -214,7 +215,9 @@ Checkpoint: User confirmed figure, proceed to Phase 2
 Checkpoint: User confirmed, proceed to Phase 3
 
 ## Phase 3: Baseline Audit
+
 ### 3.1 Execute
+
 - [ ] Find real train/eval entrypoints (use rg, not assumptions)
 - [ ] Find config mechanism (argparse/hydra/yaml)
 - [ ] Find data loading code
@@ -223,6 +226,7 @@ Checkpoint: User confirmed, proceed to Phase 3
 - [ ] Run baseline smoke test (1 iteration)
 
 ### 3.2 Document
+
 - [ ] Create `phase_3_baseline_audit_report.md` with:
   - Train entrypoint: file path, command example
   - Eval entrypoint: file path, command example
@@ -238,6 +242,7 @@ Checkpoint: User confirmed, proceed to Phase 3
   - Identified risks or mismatches with paper
 
 ### 3.3 User Confirm (BLOCKING)
+
 - [ ] Present report to user
 - [ ] Wait for explicit confirmation
 - [ ] If changes requested, return to 3.1
@@ -245,14 +250,18 @@ Checkpoint: User confirmed, proceed to Phase 3
 Checkpoint: User confirmed, proceed to Phase 4
 
 ## Phase 4: Module Implementation
+
 ### 4.1 Execute
+
 For each innovation module:
+
 - [ ] Implement in target file
 - [ ] Smoke test on synthetic tensors (print shapes, check gradients)
 - [ ] Add config flag to enable/disable
 - [ ] Document any deviations from paper
 
 ### 4.2 Document
+
 - [ ] Create `phase_4_modules_report.md` with:
   - For each module:
     * Implementation file: path and line numbers
@@ -263,6 +272,7 @@ For each innovation module:
   - Modules not yet implemented: reason (ambiguous, out of scope, etc.)
 
 ### 4.3 User Confirm (BLOCKING)
+
 - [ ] Present report to user
 - [ ] Wait for explicit confirmation
 - [ ] If changes requested, return to 4.1
@@ -270,7 +280,9 @@ For each innovation module:
 Checkpoint: User confirmed, proceed to Phase 4.5
 
 ## Phase 4.5: Loss Consistency Check
+
 ### 4.5.1 Execute
+
 - [ ] List every loss component from paper's total loss formula
 - [ ] For each component:
   - [ ] Verify function is defined
@@ -283,6 +295,7 @@ Checkpoint: User confirmed, proceed to Phase 4.5
   - [ ] If paper mentions specific loss weights: verify they match implementation
 
 ### 4.5.2 Document
+
 - [ ] Create `phase_4.5_loss_check_report.md` with:
   - Paper's total loss formula (LaTeX)
   - Implementation breakdown:
@@ -294,6 +307,7 @@ Checkpoint: User confirmed, proceed to Phase 4.5
   - **PASS/FAIL**: All components active and non-zero?
 
 ### 4.5.3 User Confirm (BLOCKING)
+
 - [ ] Present report to user
 - [ ] If FAIL: explain issue, return to 4.5.1 to fix
 - [ ] Wait for explicit confirmation
@@ -302,7 +316,9 @@ Checkpoint: User confirmed, proceed to Phase 4.5
 Checkpoint: User confirmed PASS, proceed to Phase 5
 
 ## Phase 5: Integration
+
 ### 5.1 Execute
+
 - [ ] Integrate modules into baseline behind config flags
 - [ ] Test forward/backward pass with all modules enabled
 - [ ] Test baseline recovery with all flags off
@@ -313,6 +329,7 @@ Checkpoint: User confirmed PASS, proceed to Phase 5
   - [ ] Domain distribution (if multi-domain)
 
 ### 5.2 Document
+
 - [ ] Create `phase_5_integration_report.md` with:
   - Integration points: where each module connects to baseline (file:line)
   - Config flags: how to enable/disable each module
@@ -330,6 +347,7 @@ Checkpoint: User confirmed PASS, proceed to Phase 5
   - Identified risks
 
 ### 5.3 User Confirm (BLOCKING)
+
 - [ ] Present report to user
 - [ ] Wait for explicit confirmation
 - [ ] If data statistics reveal issues, discuss with user before proceeding
@@ -337,7 +355,9 @@ Checkpoint: User confirmed PASS, proceed to Phase 5
 Checkpoint: User confirmed, proceed to Phase 6
 
 ## Phase 6: Short Training (Smoke Test)
+
 ### 6.1 Execute
+
 - [ ] Run 1-3 epochs with reduced budget (small subset or fewer iterations)
 - [ ] Monitor training loss (all components)
 - [ ] Run validation after each epoch
@@ -346,6 +366,7 @@ Checkpoint: User confirmed, proceed to Phase 6
 - [ ] Check metric trends
 
 ### 6.2 Document
+
 - [ ] Create `phase_6_short_train_report.md` with:
   - Training command used
   - Training loss log (all components, first and last batch of each epoch)
@@ -362,6 +383,7 @@ Checkpoint: User confirmed, proceed to Phase 6
   - If FAIL: diagnosis and proposed fix
 
 ### 6.3 User Confirm (BLOCKING)
+
 - [ ] Present report to user
 - [ ] If FAIL: explain issue, return to earlier phase to fix
 - [ ] Wait for explicit confirmation
@@ -370,7 +392,9 @@ Checkpoint: User confirmed, proceed to Phase 6
 Checkpoint: User confirmed PASS, proceed to Phase 7
 
 ## Phase 7: Full Training
+
 ### 7.1 Execute
+
 - [ ] Confirm training budget with user (epochs, batch size, etc.)
 - [ ] Launch full training (nohup or tmux)
 - [ ] Record PID, log paths, checkpoint dir
@@ -388,10 +412,12 @@ Checkpoint: User confirmed PASS, proceed to Phase 7
     6. If training running normally: report current status (epoch, loss, ETA)""",
     recurring=True
   )
-  ```
+```
+
 - [ ] Record cron job ID for later cleanup
 
 ### 7.2 Document
+
 - [ ] Create `phase_7_full_train_report.md` with:
   - Training command (full, reproducible)
   - Process info: PID, tmux session name, log path
@@ -401,6 +427,7 @@ Checkpoint: User confirmed PASS, proceed to Phase 7
   - Monitoring instructions (manual check if needed)
 
 ### 7.3 User Confirm (BLOCKING)
+
 - [ ] Present report to user
 - [ ] Confirm training is running
 - [ ] Confirm monitoring cron job is active
@@ -409,7 +436,9 @@ Checkpoint: User confirmed PASS, proceed to Phase 7
 Checkpoint: User confirmed, training in progress with automatic monitoring
 
 ## Phase 8: Evaluation
+
 ### 8.1 Execute
+
 - [ ] Wait for training to complete (or user signals early stop)
 - [ ] Stop monitoring cron job: `CronDelete(job_id)`
 - [ ] Identify best checkpoint (by validation metric)
@@ -418,6 +447,7 @@ Checkpoint: User confirmed, training in progress with automatic monitoring
 - [ ] If ablations requested: run ablation experiments (one module off at a time)
 
 ### 8.2 Document
+
 - [ ] Create `phase_8_eval_report.md` with:
   - Training completion status
   - Best checkpoint: path, epoch, validation metric
@@ -426,6 +456,7 @@ Checkpoint: User confirmed, training in progress with automatic monitoring
   - Prediction samples: paths to saved outputs (if applicable)
 
 ### 8.3 User Confirm (BLOCKING)
+
 - [ ] Present report to user
 - [ ] Wait for explicit confirmation
 - [ ] If results unsatisfactory, discuss next steps
@@ -433,12 +464,15 @@ Checkpoint: User confirmed, training in progress with automatic monitoring
 Checkpoint: User confirmed, proceed to Phase 9
 
 ## Phase 9: Final Summary
+
 ### 9.1 Execute
+
 - [ ] Consolidate all phase reports
 - [ ] Create final implementation summary
 - [ ] Archive artifacts (checkpoints, logs, configs)
 
 ### 9.2 Document
+
 - [ ] Create `IMPLEMENTATION_SUMMARY.md` with:
   - Paper title and goal
   - Implementation status: what was implemented, what was skipped
@@ -450,11 +484,27 @@ Checkpoint: User confirmed, proceed to Phase 9
   - Recommendations for future work
 
 ### 9.3 User Confirm (BLOCKING)
+
 - [ ] Present summary to user
 - [ ] Wait for explicit confirmation
 - [ ] **GATE**: User confirms autolab is complete
+- [ ] Update `workflow_status.json`:
+  ```json
+  "autolab": {
+    "status": "completed",
+    "user_confirmed": true,
+    "current_phase": "phase_9_final",
+    "report": "experiment_docs/IMPLEMENTATION_SUMMARY.md",
+    "timestamp": "<ISO8601>"
+  }
+  ```
 
-Checkpoint: autolab complete, ready for autobaseline (if requested)
+- [ ] Ask user: "AutoLab complete. Do you need to train SOTA baselines for comparison? (yes/no)"
+  - If **yes**: Invoke `autobaseline-0.1.0` skill using Skill tool
+  - If **no**: End workflow
+
+Checkpoint: autolab complete
+
 ```
 
 #### `experiment_docs/progress.json`
@@ -492,17 +542,20 @@ Work through TODO.md sequentially. **CRITICAL**: After completing each phase's e
 4. If user requests changes, return to that phase's execution step and iterate.
 
 **Baseline audit tips:**
+
 - Search with `rg`, don't assume filenames. Look for `argparse`, `hydra`, `Trainer`, `fit(`, `train(` to find entrypoints
 - Check `Dataset`, `DataLoader`, `build_dataset` for data loading
 - Check `load_state_dict`, `from_pretrained`, `ckpt` for weight requirements
 - Produce a short factual audit: project root, entrypoints, config mechanism, dataset format, weights, blockers
 
 **Module implementation:**
+
 - Smallest isolated version first
 - Smoke test on synthetic tensors before touching the baseline
 - One module at a time, behind config flags
 
 **Execution rules:**
+
 - One phase at a time, no skipping ahead
 - Every phase produces a report in `experiment_docs/reports/`
 - Every phase requires user confirmation before proceeding
@@ -524,17 +577,20 @@ Work through TODO.md sequentially. **CRITICAL**: After completing each phase's e
 ## Guidance
 
 **Paper reading:**
+
 - Check preamble for custom notation before interpreting formulas
 - Subsection boundaries > prose paragraphs for module identification
 - Separate architecture modules from losses from eval protocol
 
 **Paper/code gaps:**
+
 - Verify baseline API and tensor shapes first
 - Smallest adapter that preserves paper intent
 - Document deviation + rationale in phase reports
 - Escalate to user when 2+ plausible implementations would materially change results
 
 **Report writing:**
+
 - Be specific: file paths with line numbers, not "in the model file"
 - Include code snippets: 10-20 lines showing the actual implementation
 - Include command outputs: actual logs, not "it worked"
@@ -542,12 +598,14 @@ Work through TODO.md sequentially. **CRITICAL**: After completing each phase's e
 - Reports are for user review AND for AI recovery after context loss
 
 **User confirmation:**
+
 - Always present the report file path
 - Always ask explicitly for confirmation
 - Always wait for response before proceeding
 - If user is silent, remind them: "Waiting for your confirmation to proceed to Phase X+1"
 
 **Automatic training monitoring:**
+
 - Use CronCreate to set up hourly monitoring during Phase 7 (Full Training)
 - Cron schedule: avoid :00 and :30 minutes (use :07 or other off-peak times)
 - Monitor checks: errors (OOM, CUDA, NaN), progress (epoch, loss), completion status

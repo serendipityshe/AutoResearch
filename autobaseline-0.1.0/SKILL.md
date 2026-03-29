@@ -7,6 +7,15 @@ description: Use this skill when a user provides a paper (e.g., main.tex) and wa
 
 Automated SOTA baseline comparison workflow with phase-gated execution and mandatory user confirmation.
 
+## Prerequisites Check
+
+Before starting:
+
+- [ ] Check `workflow_status.json` exists in project root
+- [ ] Verify autolab status is "completed" and user_confirmed is true
+- [ ] If not completed, inform user: "AutoLab must be completed first. Please run autolab-0.1.0 skill."
+- [ ] Read autolab's `experiment_docs/IMPLEMENTATION_SUMMARY.md` for context
+
 ## When To Use
 
 Use when the user:
@@ -396,6 +405,15 @@ Checkpoint: User confirmed evaluation results, proceed to Phase 8
 - [ ] Present comparison report to user
 - [ ] Wait for explicit confirmation
 - [ ] **GATE**: User confirms autobaseline is complete
+- [ ] Update `workflow_status.json`:
+  ```json
+  "autobaseline": {
+    "status": "completed",
+    "user_confirmed": true,
+    "report": "baselines/BASELINE_COMPARISON_REPORT.md",
+    "timestamp": "<ISO8601>"
+  }
+  ```
 
 Checkpoint: autobaseline complete
 

@@ -210,4 +210,37 @@ When `--num-candidates` > 1, output files are named `<stem>_0.png`, `<stem>_1.pn
 
 The absolute path of each saved image is printed to stdout, one per line.
 
+## Completion Workflow
+
+### Generate Completion Report
+
+After user completes figure generation:
+
+- [ ] Create `paperbanana_completion_report.md` with:
+  - Execution timestamp
+  - UI access method used
+  - Parameters configured (API provider, models, num_candidates, max_critic_rounds)
+  - Figure generation status
+  - Output file paths (if saved)
+  - User confirmation status
+
+### Update Workflow Status
+
+- [ ] Read or create `workflow_status.json` in project root
+- [ ] Update paperbanana section:
+  ```json
+  "paperbanana": {
+    "status": "completed",
+    "user_confirmed": true,
+    "report": "paperbanana_completion_report.md",
+    "timestamp": "<ISO8601>"
+  }
+  ```
+
+### Ask About Next Step
+
+- [ ] Ask user: "PaperBanana complete. Do you need to implement the paper method and run experiments? (yes/no)"
+  - If **yes**: Invoke `autolab-0.1.0` skill using Skill tool
+  - If **no**: End workflow
+
 ---
