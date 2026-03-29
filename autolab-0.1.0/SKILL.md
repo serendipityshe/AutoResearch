@@ -150,16 +150,28 @@ Phased checklist with user confirmation gates:
   - `\section{Method}` through next `\section` → methodology text
 - [ ] Concatenate into content: `"Abstract:\n{abstract}\n\nMethodology:\n{method}"`
 - [ ] Write to `paper_figures/method_content.txt`
-- [ ] Invoke the paperbanana-0.1.0 skill using the Skill tool
-- [ ] The skill will:
-  - Collect API configuration (provider, key, models, base URL)
-  - Launch Streamlit web UI via `bash scripts/run_demo.sh`
-  - Provide SSH forwarding instructions if on remote server
-  - Guide user to generate diagrams interactively
-- [ ] User operates the web UI with suggested parameters:
+- [ ] Launch paperbanana web UI:
+
+```bash
+mkdir -p paper_figures
+cd /home/hz/JUZHEN_ABLATION/PaperBanana-meng
+bash scripts/run_demo.sh
+```
+
+- [ ] If running on a remote server, create a tunnel from the local machine:
+
+```bash
+ssh -L 8501:localhost:8501 user@remote-server
+```
+
+- [ ] Open `http://localhost:8501` in a browser
+- [ ] Fill the UI with:
+  - `Method Content` = abstract + method text from `paper_figures/method_content.txt`
+  - `Caption` = overview-figure intent for the paper
   - `num_candidates` = `3` (cost consideration)
   - `max_critic_rounds` = `2` (cost consideration)
-- [ ] Save generated framework figure to `paper_figures/`
+- [ ] Generate candidates through the PaperBanana web UI
+- [ ] Download and save the selected framework figure to `paper_figures/`
 
 ### 1.2 Document
 - [ ] Create `phase_1_paperbanana_report.md` with:
@@ -173,7 +185,8 @@ Phased checklist with user confirmation gates:
 - [ ] Present generated images to user
 - [ ] Ask: "Phase 1 complete. Framework figure generated. Please review images in `paper_figures/`. Reply 'confirm' to proceed to implementation, or provide feedback to regenerate."
 - [ ] If user requests changes:
-  - [ ] Invoke paperbanana skill again with revised parameters
+  - [ ] Ask for specific feedback on caption, parameters, or style
+  - [ ] Rerun paperbanana web UI with revised parameters
   - [ ] Return to 1.3
 - [ ] Wait for explicit confirmation
 
