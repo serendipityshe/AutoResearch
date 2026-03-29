@@ -1,0 +1,7 @@
+interface:
+  display_name: "PaperBanana"
+  short_description: "Launch the multi-agent PaperBanana figure workflow"
+  default_prompt: "Use $paperbanana to launch the multi-agent PaperBanana UI, explain the key parameters, and prepare the figure stage before autolab."
+
+policy:
+  allow_implicit_invocation: true
