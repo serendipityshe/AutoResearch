@@ -12,19 +12,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Unified entry point for the PaperBanana in-repo skill wrapper."""
+"""UI-only entry point for the PaperBanana skill wrapper."""
 
 from __future__ import annotations
 
 import argparse
-import asyncio
-import base64
 import importlib.util
 import os
 import shutil
 import subprocess
 import sys
-from io import BytesIO
 from pathlib import Path
 
 
@@ -49,6 +46,8 @@ def resolve_project_root() -> Path:
 PROJECT_ROOT = resolve_project_root()
 DEMO_PATH = PROJECT_ROOT / "demo.py"
 sys.path.insert(0, str(PROJECT_ROOT))
+DATA_ROOT = PROJECT_ROOT / "data" / "PaperBananaBench"
+DATASET_FAILURE_MARKER = DATA_ROOT / ".dataset_download_failed"
 
 
 def ensure_model_config() -> None:
@@ -75,6 +74,93 @@ def ensure_streamlit_available() -> None:
     sys.exit(1)
 
 
+def write_placeholder_reference_files() -> None:
+    for task_name in ("diagram", "plot"):
+        task_dir = DATA_ROOT / task_name
+        images_dir = task_dir / "images"
+        task_dir.mkdir(parents=True, exist_ok=True)
+        images_dir.mkdir(parents=True, exist_ok=True)
+        ref_path = task_dir / "ref.json"
+        if not ref_path.exists():
+            ref_path.write_text("[]\n", encoding="utf-8")
+
+
+def dataset_is_ready() -> bool:
+    required_paths = [
+        DATA_ROOT / "diagram" / "ref.json",
+        DATA_ROOT / "diagram" / "images",
+        DATA_ROOT / "plot" / "ref.json",
+        DATA_ROOT / "plot" / "images",
+    ]
+    return all(path.exists() for path in required_paths)
+
+
+def print_manual_dataset_instructions(reason: str) -> None:
+    print("Reference dataset is not available for retrieval-based generation.")
+    print(f"Reason: {reason}")
+    print("PaperBanana UI will still start, but retrieval defaults should stay on 'none' until the dataset is provided.")
+    print("Provide the dataset by placing PaperBananaBench under:")
+    print(f"  {DATA_ROOT}")
+    print("Expected structure:")
+    print(f"  {DATA_ROOT / 'diagram' / 'ref.json'}")
+    print(f"  {DATA_ROOT / 'diagram' / 'images'}")
+    print(f"  {DATA_ROOT / 'plot' / 'ref.json'}")
+    print(f"  {DATA_ROOT / 'plot' / 'images'}")
+    print("Recommended method:")
+    print("  1. Download the PaperBananaBench dataset on a machine that can access Hugging Face.")
+    print("  2. Copy the dataset directory to the server under the path above.")
+    print("  3. Restart the UI after the files are in place.")
+
+
+def ensure_ui_reference_dataset() -> None:
+    if dataset_is_ready():
+        if DATASET_FAILURE_MARKER.exists():
+            DATASET_FAILURE_MARKER.unlink()
+        return
+
+    if DATASET_FAILURE_MARKER.exists():
+        write_placeholder_reference_files()
+        print_manual_dataset_instructions(DATASET_FAILURE_MARKER.read_text(encoding="utf-8").strip())
+        return
+
+    try:
+        from huggingface_hub import snapshot_download
+    except ImportError:
+        reason = "huggingface_hub is not installed in the active environment."
+        write_placeholder_reference_files()
+        DATASET_FAILURE_MARKER.parent.mkdir(parents=True, exist_ok=True)
+        DATASET_FAILURE_MARKER.write_text(reason, encoding="utf-8")
+        print_manual_dataset_instructions(reason)
+        return
+
+    try:
+        print("Attempting to download PaperBananaBench once for UI retrieval support...")
+        snapshot_download(
+            "dwzhu/PaperBananaBench",
+            repo_type="dataset",
+            allow_patterns=["diagram/*", "plot/*"],
+            local_dir=str(DATA_ROOT),
+        )
+    except Exception as exc:
+        reason = f"Hugging Face download failed: {exc}"
+        write_placeholder_reference_files()
+        DATASET_FAILURE_MARKER.parent.mkdir(parents=True, exist_ok=True)
+        DATASET_FAILURE_MARKER.write_text(reason, encoding="utf-8")
+        print_manual_dataset_instructions(reason)
+        return
+
+    if dataset_is_ready():
+        if DATASET_FAILURE_MARKER.exists():
+            DATASET_FAILURE_MARKER.unlink()
+        return
+
+    reason = "The download completed but the expected PaperBananaBench reference files are still incomplete."
+    write_placeholder_reference_files()
+    DATASET_FAILURE_MARKER.parent.mkdir(parents=True, exist_ok=True)
+    DATASET_FAILURE_MARKER.write_text(reason, encoding="utf-8")
+    print_manual_dataset_instructions(reason)
+
+
 def print_access_instructions(host: str, port: int) -> None:
     print(f"Starting PaperBanana multi-agent UI on {host}:{port}")
     if host in {"127.0.0.1", "localhost"}:
@@ -94,11 +180,16 @@ def print_access_instructions(host: str, port: int) -> None:
 def launch_ui(args: argparse.Namespace) -> int:
     ensure_model_config()
     ensure_streamlit_available()
+    ensure_ui_reference_dataset()
     if not DEMO_PATH.exists():
         print(f"ERROR: PaperBanana UI entrypoint not found: {DEMO_PATH}", file=sys.stderr)
         return 1
 
     print_access_instructions(args.host, args.port)
+    env = os.environ.copy()
+    env["PAPERBANANA_DATA_ROOT"] = str(DATA_ROOT)
+    env["PAPERBANANA_REFERENCE_DATASET_READY"] = "1" if dataset_is_ready() else "0"
+    env["PAPERBANANA_REFERENCE_DATASET_MARKER"] = str(DATASET_FAILURE_MARKER)
     command = [
         sys.executable,
         "-m",
@@ -110,181 +201,19 @@ def launch_ui(args: argparse.Namespace) -> int:
         "--browser.gatherUsageStats=false",
         "--server.headless=true",
     ]
-    return subprocess.call(command, cwd=str(PROJECT_ROOT))
-
-
-def ensure_dataset(task_name: str) -> None:
-    data_dir = PROJECT_ROOT / "data" / "PaperBananaBench" / task_name
-    ref_path = data_dir / "ref.json"
-    images_dir = data_dir / "images"
-    if ref_path.exists() and images_dir.exists():
-        return
-    try:
-        from huggingface_hub import snapshot_download
-    except ImportError:
-        print(
-            "ERROR: huggingface_hub is required for automatic dataset download.\n"
-            "Install it with: pip install huggingface_hub",
-            file=sys.stderr,
-        )
-        sys.exit(1)
-    print(f"Downloading PaperBananaBench/{task_name} from HuggingFace...")
-    snapshot_download(
-        "dwzhu/PaperBananaBench",
-        repo_type="dataset",
-        allow_patterns=[f"{task_name}/*"],
-        local_dir=str(PROJECT_ROOT / "data" / "PaperBananaBench"),
-    )
-
-
-def extract_final_image_b64(result: dict, exp_mode: str) -> str | None:
-    task_name = "diagram"
-    for round_idx in range(3, -1, -1):
-        key = f"target_{task_name}_critic_desc{round_idx}_base64_jpg"
-        if key in result and result[key]:
-            return result[key]
-
-    if exp_mode == "demo_full":
-        key = f"target_{task_name}_stylist_desc0_base64_jpg"
-    else:
-        key = f"target_{task_name}_desc0_base64_jpg"
-    return result.get(key)
-
-
-async def run_generate(args: argparse.Namespace) -> None:
-    ensure_model_config()
-    ensure_dataset(args.task)
-
-    from agents.critic_agent import CriticAgent
-    from agents.planner_agent import PlannerAgent
-    from agents.polish_agent import PolishAgent
-    from agents.retriever_agent import RetrieverAgent
-    from agents.stylist_agent import StylistAgent
-    from agents.vanilla_agent import VanillaAgent
-    from agents.visualizer_agent import VisualizerAgent
-    from utils import config
-    from utils.paperviz_processor import PaperVizProcessor
-
-    content = args.content
-    if args.content_file:
-        content = Path(args.content_file).read_text(encoding="utf-8")
-    if not content:
-        print("ERROR: --content or --content-file is required.", file=sys.stderr)
-        sys.exit(1)
-
-    exp_config = config.ExpConfig(
-        dataset_name="Demo",
-        split_name="demo",
-        exp_mode=args.exp_mode,
-        retrieval_setting=args.retrieval_setting,
-        main_model_name=args.main_model_name,
-        image_gen_model_name=args.image_gen_model_name,
-        work_dir=PROJECT_ROOT,
-    )
-
-    processor = PaperVizProcessor(
-        exp_config=exp_config,
-        vanilla_agent=VanillaAgent(exp_config=exp_config),
-        planner_agent=PlannerAgent(exp_config=exp_config),
-        visualizer_agent=VisualizerAgent(exp_config=exp_config),
-        stylist_agent=StylistAgent(exp_config=exp_config),
-        critic_agent=CriticAgent(exp_config=exp_config),
-        retriever_agent=RetrieverAgent(exp_config=exp_config),
-        polish_agent=PolishAgent(exp_config=exp_config),
-    )
-
-    data_list = []
-    for i in range(args.num_candidates):
-        data_list.append(
-            {
-                "filename": f"skill_candidate_{i}",
-                "caption": args.caption,
-                "content": content,
-                "visual_intent": args.caption,
-                "additional_info": {"rounded_ratio": args.aspect_ratio},
-                "max_critic_rounds": args.max_critic_rounds,
-            }
-        )
-
-    results = []
-    async for result_data in processor.process_queries_batch(
-        data_list, max_concurrent=args.num_candidates, do_eval=False
-    ):
-        results.append(result_data)
-
-    if not results:
-        print("ERROR: Pipeline returned no results.", file=sys.stderr)
-        sys.exit(1)
-
-    from PIL import Image
-
-    output_path = Path(args.output).resolve()
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-
-    saved_paths = []
-    for idx, result in enumerate(results):
-        b64 = extract_final_image_b64(result, args.exp_mode)
-        if not b64:
-            print(f"WARNING: No image produced for candidate {idx}.", file=sys.stderr)
-            continue
-
-        if "," in b64:
-            b64 = b64.split(",")[1]
-        image_data = base64.b64decode(b64)
-        img = Image.open(BytesIO(image_data))
-
-        if args.num_candidates == 1:
-            save_path = output_path
-        else:
-            stem = output_path.stem
-            suffix = output_path.suffix or ".png"
-            save_path = output_path.parent / f"{stem}_{idx}{suffix}"
-
-        img.save(str(save_path), format="PNG")
-        saved_paths.append(str(save_path))
-
-    for path in saved_paths:
-        print(path)
+    return subprocess.call(command, cwd=str(PROJECT_ROOT), env=env)
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(
-        description="PaperBanana launcher: multi-agent Streamlit UI by default, CLI generate as fallback."
-    )
-    subparsers = parser.add_subparsers(dest="command")
-
-    ui_parser = subparsers.add_parser("ui", help="Launch the PaperBanana Streamlit UI backed by demo.py.")
-    ui_parser.add_argument("--host", default="127.0.0.1", help="Bind address for Streamlit.")
-    ui_parser.add_argument("--port", type=int, default=8501, help="Port for Streamlit.")
-
-    generate_parser = subparsers.add_parser("generate", help="Fallback direct CLI generation path.")
-    generate_parser.add_argument("--content", type=str, default="", help="Method section text to visualize.")
-    generate_parser.add_argument("--content-file", type=str, default="", help="Path to a file containing the method section text.")
-    generate_parser.add_argument("--caption", type=str, required=True, help="Figure caption / visual intent.")
-    generate_parser.add_argument("--task", type=str, default="diagram", choices=["diagram", "plot"], help="Task type: diagram or plot.")
-    generate_parser.add_argument("--output", type=str, default="output.png", help="Output image path.")
-    generate_parser.add_argument("--aspect-ratio", type=str, default="21:9", choices=["21:9", "16:9", "3:2"], help="Aspect ratio.")
-    generate_parser.add_argument("--max-critic-rounds", type=int, default=3, help="Max critic refinement rounds.")
-    generate_parser.add_argument("--num-candidates", type=int, default=10, help="Number of parallel candidates to generate.")
-    generate_parser.add_argument("--retrieval-setting", type=str, default="auto", choices=["auto", "manual", "random", "none"], help="Retrieval mode.")
-    generate_parser.add_argument("--main-model-name", type=str, default="", help="Main model name for VLM agents.")
-    generate_parser.add_argument("--image-gen-model-name", type=str, default="", help="Model name for image generation.")
-    generate_parser.add_argument("--exp-mode", type=str, default="demo_full", choices=["demo_full", "demo_planner_critic"], help="Pipeline mode.")
+    parser = argparse.ArgumentParser(description="PaperBanana launcher: multi-agent Streamlit UI only.")
+    parser.add_argument("--host", default="127.0.0.1", help="Bind address for Streamlit.")
+    parser.add_argument("--port", type=int, default=8501, help="Port for Streamlit.")
     return parser
 
 
 def main() -> None:
     parser = build_parser()
-    argv = sys.argv[1:]
-    if not argv or argv[0].startswith("-"):
-        args = parser.parse_args(["ui", *argv])
-    else:
-        args = parser.parse_args(argv)
-
-    if args.command == "generate":
-        asyncio.run(run_generate(args))
-        return
-
+    args = parser.parse_args(sys.argv[1:])
     sys.exit(launch_ui(args))
 
 

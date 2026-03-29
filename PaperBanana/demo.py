@@ -77,6 +77,32 @@ st.set_page_config(
     page_icon="🍌"
 )
 
+DATA_ROOT = Path(os.getenv("PAPERBANANA_DATA_ROOT", str(Path(__file__).parent / "data" / "PaperBananaBench")))
+DATASET_FAILURE_MARKER = Path(
+    os.getenv("PAPERBANANA_REFERENCE_DATASET_MARKER", str(DATA_ROOT / ".dataset_download_failed"))
+)
+
+
+def get_reference_dataset_status():
+    diagram_ref = DATA_ROOT / "diagram" / "ref.json"
+    diagram_images = DATA_ROOT / "diagram" / "images"
+    plot_ref = DATA_ROOT / "plot" / "ref.json"
+    plot_images = DATA_ROOT / "plot" / "images"
+    ready = all(path.exists() for path in [diagram_ref, diagram_images, plot_ref, plot_images])
+    if ready:
+        return True, ""
+
+    message = (
+        "Reference dataset is unavailable, so retrieval-based modes are disabled by default. "
+        "Provide PaperBananaBench under "
+        f"`{DATA_ROOT}` with `diagram/ref.json`, `diagram/images`, `plot/ref.json`, and `plot/images`."
+    )
+    if DATASET_FAILURE_MARKER.exists():
+        failure_reason = DATASET_FAILURE_MARKER.read_text(encoding="utf-8").strip()
+        if failure_reason:
+            message += f" Download status: {failure_reason}"
+    return False, message
+
 def clean_text(text):
     """Clean text by removing invalid UTF-8 surrogate characters."""
     if not text:
@@ -607,11 +633,14 @@ def main():
         # Sidebar configuration for Tab 1
         with st.sidebar:
             st.title("⚙️ Generation Settings")
+            reference_dataset_ready, reference_dataset_message = get_reference_dataset_status()
+            if not reference_dataset_ready:
+                st.warning(reference_dataset_message)
             
             exp_mode = st.selectbox(
                 "Pipeline Mode",
                 ["dev_planner", "demo_planner_critic", "demo_full"],
-                index=0,
+                index=2,
                 key="tab1_exp_mode",
                 help="Select which agent pipeline to use"
             )
@@ -630,12 +659,19 @@ def main():
                 help="Reduce token and image spend by using fewer references, fewer retries, and fewer critic rounds"
             )
             
+            retrieval_options = ["auto", "manual", "random", "none"] if reference_dataset_ready else ["none"]
+            retrieval_help = (
+                "How to retrieve reference diagrams: auto (automatic selection), manual (use specified references), "
+                "random (random selection), none (no retrieval)"
+            )
+            if not reference_dataset_ready:
+                retrieval_help += " Dataset references are currently unavailable, so only 'none' is enabled."
             retrieval_setting = st.selectbox(
                 "Retrieval Setting",
-                ["auto", "manual", "random", "none"],
-                index=0,
+                retrieval_options,
+                index=0 if reference_dataset_ready else retrieval_options.index("none"),
                 key="tab1_retrieval_setting",
-                help="How to retrieve reference diagrams: auto (automatic selection), manual (use specified references), random (random selection), none (no retrieval)"
+                help=retrieval_help
             )
             
             num_candidates = st.number_input(
@@ -1017,6 +1053,8 @@ The framework extends to statistical plots by adjusting the Visualizer and Criti
                 with st.spinner(f"Generating {num_candidates} candidates in parallel... This may take a few minutes."):
                     effective_retrieval_setting = retrieval_setting
                     if int(max_reference_examples) == 0:
+                        effective_retrieval_setting = "none"
+                    if not reference_dataset_ready:
                         effective_retrieval_setting = "none"
 
                     # Create input data list

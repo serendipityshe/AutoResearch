@@ -89,19 +89,10 @@ streamlit run /home/hz/AutoLab/PaperBanana/demo.py
 
 - For parameter guidance, read `references/ui-params.md`.
 - For local vs remote access, read `references/remote-access.md`.
+- For manual dataset setup after a failed download attempt, read `references/dataset-setup.md`.
 
 ## Pipeline Position
 
 1. Use `paperbanana` first to launch the UI and complete the figure stage.
 2. Continue with `autolab` for implementation and experiments.
 3. Use `autobaseline` after autolab if baseline comparisons are needed.
-
-## Fallback CLI
-
-The launcher also supports a non-default CLI path:
-
-```bash
-python run.py generate --content-file method.txt --caption "Figure 1: Overview of the proposed framework"
-```
-
-Use the fallback only when the UI is not appropriate for the task.
