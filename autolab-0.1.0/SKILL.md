@@ -150,46 +150,30 @@ Phased checklist with user confirmation gates:
   - `\section{Method}` through next `\section` → methodology text
 - [ ] Concatenate into content: `"Abstract:\n{abstract}\n\nMethodology:\n{method}"`
 - [ ] Write to `paper_figures/method_content.txt`
-- [ ] Launch paperbanana through the unified skill wrapper:
-
-```bash
-mkdir -p paper_figures
-python /home/hz/AutoLab/PaperBanana/skill/run.py --host 127.0.0.1 --port 8501
-```
-
-- [ ] If running on a remote server, create a tunnel from the local machine:
-
-```bash
-ssh -L 8501:127.0.0.1:8501 <user>@<server>
-```
-
-- [ ] Open `http://127.0.0.1:8501` in a browser
-- [ ] Fill the UI with:
-  - `Method Content` = abstract + method text from `paper_figures/method_content.txt`
-  - `Caption` = overview-figure intent for the paper
-  - `exp_mode` = `demo_full`
-  - `retrieval_setting` = `auto`
-  - `num_candidates` = `3`
-  - `aspect_ratio` = `21:9`
-  - `max_critic_rounds` = `3`
-- [ ] Generate candidates through the PaperBanana multi-agent UI
-- [ ] Save or export the selected framework figure into `paper_figures/`
+- [ ] Invoke the paperbanana-0.1.0 skill using the Skill tool
+- [ ] The skill will:
+  - Collect API configuration (provider, key, models, base URL)
+  - Launch Streamlit web UI via `bash scripts/run_demo.sh`
+  - Provide SSH forwarding instructions if on remote server
+  - Guide user to generate diagrams interactively
+- [ ] User operates the web UI with suggested parameters:
+  - `num_candidates` = `3` (cost consideration)
+  - `max_critic_rounds` = `2` (cost consideration)
+- [ ] Save generated framework figure to `paper_figures/`
 
 ### 1.2 Document
 - [ ] Create `phase_1_paperbanana_report.md` with:
   - Generated image paths
-  - Paperbanana launch command used
-  - Whether access was local, SSH-forwarded, or directly exposed
-  - UI parameters used
+  - API provider and models used
+  - UI parameters used (num_candidates, max_critic_rounds)
   - Generation time
   - Image preview or description
 
 ### 1.3 User Confirm (BLOCKING)
 - [ ] Present generated images to user
-- [ ] Ask: "Phase 1 complete. PaperBanana is configured and the framework figure has been generated. Please review the images in `paper_figures/`. Reply 'confirm' to proceed to implementation, or provide feedback to rerun the PaperBanana UI with revised parameters."
+- [ ] Ask: "Phase 1 complete. Framework figure generated. Please review images in `paper_figures/`. Reply 'confirm' to proceed to implementation, or provide feedback to regenerate."
 - [ ] If user requests changes:
-  - [ ] Ask for specific feedback on caption, mode, candidate count, or style
-  - [ ] Rerun paperbanana via the UI wrapper
+  - [ ] Invoke paperbanana skill again with revised parameters
   - [ ] Return to 1.3
 - [ ] Wait for explicit confirmation
 
