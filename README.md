@@ -1,5 +1,7 @@
 # AutoLab - Paper-Driven Deep Learning Experiment Workflow
 
+[中文版](README_zh.md) | English
+
 A three-skill pipeline for automating the complete workflow from paper to experiments: framework figure generation → method implementation → baseline comparison.
 
 ## Overview
