@@ -48,16 +48,17 @@ ls .claude/skills/
 ### Quick Start
 
 1. **Prepare your paper source**
+
    - Place `main.tex` in your project directory
    - Ensure it contains `\begin{abstract}...\end{abstract}` and `\section{Method}` sections
-
 2. **Start the workflow**
+
    ```bash
    # In Claude Code, invoke the first skill
    /paperbanana-0.1.0
    ```
-
 3. **Follow the guided workflow**
+
    - Each skill will ask for confirmation before proceeding
    - Review generated reports in `experiment_docs/reports/`
    - Check workflow status in `workflow_status.json`
@@ -124,16 +125,19 @@ The `workflow_status.json` file tracks the state of all three skills:
 **Purpose**: Generate publication-quality framework figures from paper abstract and methodology.
 
 **When to use**:
+
 - You need a framework diagram for your paper
 - You want to visualize the method architecture
 
 **Workflow**:
+
 1. Extracts abstract and method sections from `main.tex`
 2. Launches interactive web UI for figure generation
 3. Generates completion report
 4. Asks if you want to proceed to AutoLab
 
 **Output**:
+
 - `paperbanana_completion_report.md` - Execution details and parameters
 - Generated framework figures (saved by user through UI)
 - Updated `workflow_status.json`
@@ -147,10 +151,12 @@ The `workflow_status.json` file tracks the state of all three skills:
 **Purpose**: Implement the paper's method, run experiments, and perform ablations.
 
 **When to use**:
+
 - You have a paper source (`main.tex`) and want to implement it
 - You need structured experiment tracking with phase gates
 
 **Phases**:
+
 1. **Phase 1**: Generate framework figure (via PaperBanana)
 2. **Phase 2**: Setup baseline, dataset, environment
 3. **Phase 3**: Baseline audit (find entrypoints, configs, data loading)
@@ -163,6 +169,7 @@ The `workflow_status.json` file tracks the state of all three skills:
 10. **Phase 9**: Final summary and comparison
 
 **Output**:
+
 - `experiment_docs/CLAUDE.md` - Project context and module map
 - `experiment_docs/TODO.md` - Phase checklist
 - `experiment_docs/progress.json` - Internal phase tracking
@@ -171,6 +178,7 @@ The `workflow_status.json` file tracks the state of all three skills:
 - Updated `workflow_status.json`
 
 **Key features**:
+
 - Checks if PaperBanana already completed (reads `workflow_status.json`)
 - Automatic training monitoring with cron jobs
 - Mandatory user confirmation at each phase
@@ -183,14 +191,17 @@ The `workflow_status.json` file tracks the state of all three skills:
 **Purpose**: Train SOTA baseline models for comparison with your method.
 
 **When to use**:
+
 - AutoLab has completed implementation
 - You need to compare against SOTA baselines from the paper
 
 **Prerequisites**:
+
 - AutoLab must be completed (checks `workflow_status.json`)
 - Reads `experiment_docs/IMPLEMENTATION_SUMMARY.md` for context
 
 **Phases**:
+
 1. **Phase 1**: Identify baselines from paper
 2. **Phase 2**: Clone baseline repositories
 3. **Phase 3**: Audit baseline codebases
@@ -201,11 +212,13 @@ The `workflow_status.json` file tracks the state of all three skills:
 8. **Phase 8**: Collect metrics and generate comparison report
 
 **Output**:
+
 - `baselines/reports/phase_*.md` - Phase reports
 - `baselines/BASELINE_COMPARISON_REPORT.md` - Final comparison
 - Updated `workflow_status.json`
 
 **Key features**:
+
 - Handles multiple independent codebases
 - Unified evaluation on the same dataset
 - Automatic training monitoring
@@ -274,21 +287,27 @@ your-project/
 ## Design Philosophy
 
 ### 1. Human-in-the-Loop
+
 Every phase requires explicit user confirmation. The AI cannot skip ahead or make assumptions about your intent.
 
 ### 2. Documentation-Driven
+
 All decisions, implementations, and results are documented in `.md` files. These serve as:
+
 - Audit trail for reproducibility
 - Context for future sessions
 - Evidence for paper writing
 
 ### 3. State Coordination
+
 The shared `workflow_status.json` enables:
+
 - Cross-skill state checking
 - Workflow resumption after interruption
 - Flexible execution order (skip completed steps)
 
 ### 4. Fail-Safe Execution
+
 - One phase at a time, no parallel execution across phases
 - Concrete evidence required (file paths, line numbers, command outputs)
 - Smoke tests before full training
@@ -297,15 +316,18 @@ The shared `workflow_status.json` enables:
 ## Troubleshooting
 
 ### "AutoLab must be completed first"
+
 - AutoBaseline requires AutoLab to finish Phase 9
 - Check `workflow_status.json` to see AutoLab's status
 - Complete AutoLab before running AutoBaseline
 
 ### "PaperBanana already completed"
+
 - AutoLab detected existing PaperBanana completion in `workflow_status.json`
 - If you want to regenerate, manually edit the JSON or delete it
 
 ### Workflow state is corrupted
+
 ```bash
 # Reset workflow state
 rm workflow_status.json
@@ -313,6 +335,7 @@ rm workflow_status.json
 ```
 
 ### Phase reports are missing
+
 - Each phase generates a report before asking for confirmation
 - If missing, the phase was not completed
 - Re-run the skill to regenerate
@@ -340,6 +363,7 @@ See individual skill directories for license information.
 ## Contributing
 
 This is a research workflow automation tool. Contributions welcome for:
+
 - Additional phase checks and validations
 - Better error handling and recovery
 - Support for more paper formats
@@ -352,8 +376,8 @@ If you use AutoLab in your research, please cite:
 ```bibtex
 @software{autolab2026,
   title={AutoLab: Paper-Driven Deep Learning Experiment Workflow},
-  author={Your Name},
+  author={serendipityshe},
   year={2026},
-  url={https://github.com/yourusername/autolab}
+  url={https://github.com/serendipityshe/JUZHEN_ABLATION.git}
 }
 ```
