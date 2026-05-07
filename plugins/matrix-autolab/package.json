@@ -1,0 +1,59 @@
+{
+  "name": "@dreamweaverai/matrix-autolab",
+  "version": "0.1.0",
+  "description": "Matrix-AutoLab Codex plugin for paper-to-experiment workflows.",
+  "license": "MIT-0",
+  "author": {
+    "name": "Matrix-AutoLab Contributors",
+    "url": "https://github.com/serendipityshe/JUZHEN_ABLATION"
+  },
+  "homepage": "https://github.com/serendipityshe/JUZHEN_ABLATION",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/serendipityshe/JUZHEN_ABLATION.git",
+    "directory": "plugins/matrix-autolab"
+  },
+  "keywords": [
+    "codex-plugin",
+    "autolab",
+    "paper-reproduction",
+    "deep-learning",
+    "experiments"
+  ],
+  "bin": {
+    "matrix-autolab": "./bin/matrix-autolab.js"
+  },
+  "files": [
+    ".codex-plugin/",
+    ".app.json",
+    "apps/dashboard/app/",
+    "apps/dashboard/components/",
+    "apps/dashboard/lib/",
+    "apps/dashboard/package-lock.json",
+    "apps/dashboard/package.json",
+    "apps/dashboard/postcss.config.mjs",
+    "apps/dashboard/README.md",
+    "apps/dashboard/tailwind.config.ts",
+    "apps/dashboard/tsconfig.json",
+    "bin/",
+    "PUBLISHING.md",
+    "README.md",
+    "scripts/autolab_collect.py",
+    "scripts/autolab_common.py",
+    "scripts/autolab_contract.py",
+    "scripts/autolab_environment.py",
+    "scripts/autolab_event.py",
+    "scripts/autolab_gate.py",
+    "scripts/autolab_run.py",
+    "skills/"
+  ],
+  "scripts": {
+    "pack:dry-run": "npm pack --dry-run",
+    "doctor": "node ./bin/matrix-autolab.js doctor",
+    "install:plugin": "node ./bin/matrix-autolab.js install",
+    "test": "node ./bin/matrix-autolab.js doctor"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

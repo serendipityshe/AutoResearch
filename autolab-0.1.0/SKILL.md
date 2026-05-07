@@ -2,7 +2,7 @@
 name: autolab
 description: Use this skill when a user provides a paper source file (e.g., main.tex) and wants to implement the method, run experiments, or perform ablations. Guides phased execution from paper reading to final evaluation with mandatory user confirmation at each phase.
 ---
-# AutoLab v0.2.0
+# AutoLab v0.3.0
 
 Paper-driven deep learning experiment workflow with phase-gated execution and mandatory user confirmation.
 
@@ -45,6 +45,23 @@ autolab is part of a three-skill pipeline driven by `main.tex`:
 - After each phase, AI MUST present the report and ask: "Phase X complete. Please review `phase_X_{name}_report.md`. Confirm to proceed or request changes."
 - AI MUST wait for explicit user response ("confirm", "ok", "proceed", or specific feedback)
 - If user requests changes, return to that phase's execution step
+
+### 4. Two-Tier Gates (Machine + Human)
+
+Every phase below has **two gates**:
+
+1. **User Gate** — the user types `confirm` in chat after reading the phase report.
+2. **Machine Gate** — a JSON artifact in `.autolab/runs/<run_id>/` that proves the phase actually ran. The next phase's first action is to validate it via the matrix-autolab CLI; if the artifact is missing or fails validation, the next phase MUST refuse to proceed.
+
+The machine gate is what stops "I claimed I did X" drift. AI MUST NOT skip producing the artifact, and MUST run the validating CLI command before each downstream phase. If a model has no `.autolab/` workspace yet (the user hasn't initialised the project), Phase 2 includes the `init-project` + `start-run` calls that create it.
+
+CLI invocation pattern (run from the autolab project root):
+
+```bash
+python plugins/matrix-autolab/scripts/autolab_run.py <subcommand> --run-id <id> ...
+```
+
+Throughout this skill, where you see "Machine Gate:" the listed artifact and CLI exit code are mandatory.
 
 ## Workflow
 
@@ -193,6 +210,12 @@ Checkpoint: User confirmed, proceed to Phase 2
 
 ### 2.1 Execute
 
+- [ ] Initialise project tracking and start a run (skip if `.autolab/` already has an active run):
+  ```bash
+  python plugins/matrix-autolab/scripts/autolab_run.py init-project --name "<paper title>" --paper-source main.tex
+  python plugins/matrix-autolab/scripts/autolab_run.py start-run --kind paper_reproduction --entry-skill autolab
+  ```
+  Capture the `run_id` from start-run's stdout — every later command needs it.
 - [ ] Confirm baseline path
 - [ ] Confirm dataset path
 - [ ] Confirm environment and weights
@@ -204,6 +227,7 @@ Checkpoint: User confirmed, proceed to Phase 2
   - Dataset path and sample count
   - Environment details (conda env, GPU, CUDA version)
   - Pretrained weights path (if applicable)
+  - Active `run_id`
   - Any blockers or missing dependencies
 
 ### 2.3 User Confirm (BLOCKING)
@@ -212,7 +236,47 @@ Checkpoint: User confirmed, proceed to Phase 2
 - [ ] Wait for explicit confirmation
 - [ ] If changes requested, return to 2.1
 
-Checkpoint: User confirmed, proceed to Phase 3
+Machine Gate: `.autolab/runs/<run_id>/run.json` exists with `status: in_progress`. Verify with `autolab_run.py status`.
+
+Checkpoint: User confirmed, proceed to Phase 2.5
+
+## Phase 2.5: Environment Sanity Scan
+
+### 2.5.1 Execute
+
+- [ ] Scan the baseline working directory for stale checkpoints, caches, and outputs left by prior workflows. The scanner detects:
+  - checkpoint files (`*.pth`, `*.ckpt`, `*.bin`, `*.safetensors`, `*.pt`)
+  - output dirs (`outputs/`, `runs/`, `wandb/`, `lightning_logs/`, `tensorboard/`, `mlruns/`)
+  - cache dirs (`*/cache`, `data/cache`, `processed/`)
+  - large untracked binaries (>1 MiB) that are not git-managed
+- [ ] Run the scan:
+  ```bash
+  python plugins/matrix-autolab/scripts/autolab_run.py scan-environment \
+      --run-id <id> --workdir <baseline_root>
+  ```
+  Outputs:
+    * `.autolab/runs/<id>/environment_snapshot.json` — machine-readable list with paths, sizes, mtimes, sha256, git-tracked status
+    * `.autolab/runs/<id>/environment_decisions.json` — initialised with `decision: "pending"` for each item
+    * `.autolab/runs/<id>/reports/phase_2.5_environment_report.md` — human-readable report
+
+### 2.5.2 Document
+
+- [ ] Open the report and walk the user through every detected item.
+- [ ] For each entry in `environment_decisions.json`, the user must replace `"pending"` with one of:
+    * `"keep"` — acknowledged as a known input (e.g., a pretrained weight intentionally placed there). Record the rationale.
+    * `"move-aside"` — rename it to `*.bak` so the skill ignores it. Document the new path.
+    * `"delete"` — remove it. ONLY do so on the user's explicit instruction.
+- [ ] Update `phase_2.5_environment_report.md` with the user's decision per item and a one-line rationale.
+
+### 2.5.3 User Confirm (BLOCKING)
+
+- [ ] Present the report and the updated `environment_decisions.json` to the user.
+- [ ] Wait for explicit confirmation that the working directory is clean.
+- [ ] **GATE**: Every item must have a non-`pending` decision. If any pending remain, AI MUST refuse to proceed and ask the user to decide.
+
+Machine Gate: `environment_snapshot.json` exists AND `environment_decisions.json` has zero items with `decision == "pending"`. Before later phases that touch training, AI MUST re-scan with `--against .autolab/runs/<id>/environment_snapshot.json` and verify exit code 0; exit code 3 means new untracked artifacts appeared and the workflow MUST stop until the user adjudicates.
+
+Checkpoint: User confirmed clean environment, proceed to Phase 3
 
 ## Phase 3: Baseline Audit
 
@@ -313,7 +377,69 @@ Checkpoint: User confirmed, proceed to Phase 4.5
 - [ ] Wait for explicit confirmation
 - [ ] **GATE**: Must be PASS to proceed
 
-Checkpoint: User confirmed PASS, proceed to Phase 5
+Machine Gate: `phase_4.5_loss_check_report.md` exists AND its closing line reads `PASS`.
+
+Checkpoint: User confirmed PASS, proceed to Phase 4.7
+
+## Phase 4.7: Data Pipeline Freeze
+
+### 4.7.1 Execute
+
+- [ ] Serialise the **deterministic** preprocess pipeline (Resize, CenterCrop, Normalize, ToTensor, etc.) as a JSON object to `experiment_docs/preprocess.json`. Include every transform's class name and parameters in their applied order. Example:
+    ```json
+    {
+      "transforms": [
+        {"name": "Resize", "size": [512, 1024], "interpolation": "bilinear"},
+        {"name": "Normalize", "mean": [0.485, 0.456, 0.406], "std": [0.229, 0.224, 0.225]},
+        {"name": "ToTensor"}
+      ],
+      "input_resolution": [512, 1024]
+    }
+    ```
+- [ ] Serialise the **stochastic** augmentation pipeline as a JSON object to `experiment_docs/augment.json`. Include train/val splits separately:
+    ```json
+    {
+      "train": [
+        {"name": "RandomFlip", "p": 0.5, "axis": "horizontal"},
+        {"name": "ColorJitter", "brightness": 0.2, "contrast": 0.2}
+      ],
+      "val": []
+    }
+    ```
+- [ ] Compute and persist hashes:
+  ```bash
+  python plugins/matrix-autolab/scripts/autolab_run.py freeze-pipeline \
+      --run-id <id> \
+      --pre @experiment_docs/preprocess.json \
+      --aug @experiment_docs/augment.json
+  ```
+  Stdout returns `{"preprocess_hash": "...", "augment_hash": "..."}`. The hashes are also written into `.autolab/runs/<id>/contract.json` under `data.preprocess_hash` and `data.augment_hash`.
+
+### 4.7.2 Document
+
+- [ ] Create `phase_4.7_pipeline_report.md` with:
+  - Full preprocess transform list (code snippets + JSON)
+  - Full train and val augmentation lists (code snippets + JSON)
+  - `preprocess_hash` and `augment_hash` from the CLI output
+  - Class mapping, splits, normalization statistics, target resolution
+  - Any deviations from paper's described preprocessing/augmentation, with rationale
+
+### 4.7.3 User Confirm (BLOCKING)
+
+- [ ] Present the report to user.
+- [ ] Confirm: "These two hashes lock the data pipeline. No phase from 6 onwards may change preprocess or augment without explicit re-freeze."
+- [ ] Wait for explicit confirmation.
+
+Machine Gate: `.autolab/runs/<id>/contract.json` has non-empty `data.preprocess_hash` AND non-empty `data.augment_hash`. Before Phase 6, 7, 8 launches the skill MUST run:
+```bash
+python plugins/matrix-autolab/scripts/autolab_run.py validate-contract \
+    --run-id <id> \
+    --pre @experiment_docs/preprocess.json \
+    --aug @experiment_docs/augment.json
+```
+and verify exit code 0. Exit code 3 means the on-disk pipeline drifted from the frozen contract — STOP and notify the user.
+
+Checkpoint: User confirmed pipeline frozen, proceed to Phase 5
 
 ## Phase 5: Integration
 
@@ -389,6 +515,8 @@ Checkpoint: User confirmed, proceed to Phase 6
 - [ ] Wait for explicit confirmation
 - [ ] **GATE**: Must be PASS to proceed to full training
 
+Machine Gate: Before launching short training, run `validate-contract --pre @... --aug @...` and confirm exit code 0. The pipeline used for short training must match the frozen Phase 4.7 hashes.
+
 Checkpoint: User confirmed PASS, proceed to Phase 7
 
 ## Phase 7: Full Training
@@ -396,6 +524,17 @@ Checkpoint: User confirmed PASS, proceed to Phase 7
 ### 7.1 Execute
 
 - [ ] Confirm training budget with user (epochs, batch size, etc.)
+- [ ] Populate the remaining contract fields (hyperparams, modules, environment) by editing `.autolab/runs/<id>/contract.json` directly, then **lock** the contract:
+  ```bash
+  python plugins/matrix-autolab/scripts/autolab_run.py lock-contract --run-id <id>
+  ```
+  Lock fails (exit 5) if any required field is empty — fill those in and retry. Once locked, hyperparams / modules / data hashes / environment cannot be modified for this run.
+- [ ] Re-validate the pipeline one last time:
+  ```bash
+  python plugins/matrix-autolab/scripts/autolab_run.py validate-contract \
+      --run-id <id> --pre @experiment_docs/preprocess.json --aug @experiment_docs/augment.json --strict
+  ```
+  Must exit 0 before launching training.
 - [ ] Launch full training (nohup or tmux)
 - [ ] Record PID, log paths, checkpoint dir
 - [ ] Set up automatic monitoring using CronCreate:
@@ -433,6 +572,8 @@ Checkpoint: User confirmed PASS, proceed to Phase 7
 - [ ] Confirm monitoring cron job is active
 - [ ] Wait for explicit confirmation
 
+Machine Gate: `.autolab/runs/<id>/contract.json` has a non-empty `locked_at`. AI MUST NOT launch training until this is true.
+
 Checkpoint: User confirmed, training in progress with automatic monitoring
 
 ## Phase 8: Evaluation
@@ -444,7 +585,16 @@ Checkpoint: User confirmed, training in progress with automatic monitoring
 - [ ] Identify best checkpoint (by validation metric)
 - [ ] Run evaluation script on test set
 - [ ] Collect all metrics
-- [ ] If ablations requested: run ablation experiments (one module off at a time)
+- [ ] **If ablations requested**: AI MUST create each ablation child run via `derive-ablation`, NOT via `start-run`. The CLI refuses any change other than the toggled module flag, guaranteeing all ablations share identical hyperparams/data/environment with the parent:
+  ```bash
+  python plugins/matrix-autolab/scripts/autolab_run.py derive-ablation \
+      --parent <parent_run_id> --toggle <module_name>=false
+  ```
+  Repeat for each module to ablate. After each ablation completes, run the same training entrypoint (the modules dict in the child contract controls the flags) and finish the run with `finish-run`. Compare results across ablations with:
+  ```bash
+  python plugins/matrix-autolab/scripts/autolab_run.py compare-runs --run-a <parent> --run-b <child>
+  ```
+  to confirm the only contract diff is the toggled module(s).
 
 ### 8.2 Document
 
@@ -460,6 +610,8 @@ Checkpoint: User confirmed, training in progress with automatic monitoring
 - [ ] Present report to user
 - [ ] Wait for explicit confirmation
 - [ ] If results unsatisfactory, discuss next steps
+
+Machine Gate: For every ablation run, `.autolab/runs/<child_id>/contract.json` has a non-null `parent_run_id` and `ablation_diff` whose only entries are `modules.*`. If a manually-created run lacks lineage, AI MUST refuse to include its results in the comparison table.
 
 Checkpoint: User confirmed, proceed to Phase 9
 
@@ -516,9 +668,11 @@ Checkpoint: autolab complete
   "phases": {
     "phase_1_paperbanana": {"status": "pending", "report": "", "user_confirmed": false},
     "phase_2_setup": {"status": "pending", "report": "", "user_confirmed": false},
+    "phase_2.5_environment": {"status": "pending", "report": "", "user_confirmed": false},
     "phase_3_baseline_audit": {"status": "pending", "report": "", "user_confirmed": false},
     "phase_4_modules": {"status": "pending", "report": "", "user_confirmed": false},
     "phase_4.5_loss_check": {"status": "pending", "report": "", "user_confirmed": false},
+    "phase_4.7_pipeline_freeze": {"status": "pending", "report": "", "user_confirmed": false},
     "phase_5_integration": {"status": "pending", "report": "", "user_confirmed": false},
     "phase_6_short_train": {"status": "pending", "report": "", "user_confirmed": false},
     "phase_7_full_train": {"status": "pending", "report": "", "user_confirmed": false},
@@ -566,6 +720,8 @@ Work through TODO.md sequentially. **CRITICAL**: After completing each phase's e
   - Never assume user approval without explicit response
   - Never proceed to next phase "to save time"
   - Reports must contain concrete evidence (file:line, code snippets, log outputs), not summaries
+  - Never bypass a Machine Gate by declaring success in prose; the JSON artifact MUST exist and the validating CLI subcommand MUST exit 0
+  - Never modify or delete contract.json / environment_snapshot.json after they're locked; if the run state is genuinely wrong, abort the run with `finish-run --status aborted` and start a fresh one
 
 ### Step 5: Recover after interruption
 
@@ -613,3 +769,27 @@ Work through TODO.md sequentially. **CRITICAL**: After completing each phase's e
 - If training completes: notify user and proceed to next phase
 - Always record cron job ID in phase report for later cleanup
 - Always stop cron job with CronDelete when training completes or Phase 8 starts
+
+**Contract & rigor commands (quick reference):**
+
+All commands run from the autolab project root and expect `--run-id <id>` unless noted.
+
+| When | Command | Purpose |
+|---|---|---|
+| Phase 2.5 | `scan-environment --workdir <baseline>` | Detect stale checkpoints / caches / outputs |
+| Phase 2.5 (re-check) | `scan-environment --workdir <baseline> --against <prior_snapshot>` | Exit 3 if new untracked artifacts appeared |
+| Phase 4.7 | `freeze-pipeline --pre @pre.json --aug @aug.json` | Hash and persist preprocess + augment specs |
+| Phase 6 / 7 pre-launch | `validate-contract --pre @pre.json --aug @aug.json` | Confirm pipeline matches frozen hashes (exit 3 on drift) |
+| Phase 7 launch | `lock-contract` | Stamp `locked_at`; refuses if any required field is empty (exit 5) |
+| Phase 8 ablation | `derive-ablation --parent <id> --toggle name=false` | Create child run sharing all parent contract fields except toggled module(s) |
+| Phase 8 review | `compare-runs --run-a <id> --run-b <id>` | Show field-level diff between two contracts |
+
+Exit codes used by these commands:
+
+- `0` — success
+- `1` — run / contract / file not found
+- `2` — invalid args / malformed JSON
+- `3` — hash mismatch or new environment artifact detected
+- `4` — contract is locked, cannot modify
+- `5` — required fields missing or contract not locked while required
+- `6` — derive-ablation rejected (unknown module, no-op toggle, or non-toggle change attempted)

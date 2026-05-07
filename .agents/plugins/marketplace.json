@@ -1,0 +1,20 @@
+{
+  "name": "autolab-local",
+  "interface": {
+    "displayName": "AutoLab Local"
+  },
+  "plugins": [
+    {
+      "name": "matrix-autolab",
+      "source": {
+        "source": "local",
+        "path": "./plugins/matrix-autolab"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Research"
+    }
+  ]
+}

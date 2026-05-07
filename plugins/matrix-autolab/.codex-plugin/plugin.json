@@ -1,0 +1,46 @@
+{
+  "name": "matrix-autolab",
+  "version": "0.1.0",
+  "description": "Unified plugin packaging for PaperBanana, AutoLab, AutoBaseline, local experiment recording, and the Matrix-AutoLab dashboard.",
+  "author": {
+    "name": "Matrix-AutoLab Contributors",
+    "email": "",
+    "url": "https://github.com/serendipityshe/JUZHEN_ABLATION"
+  },
+  "homepage": "https://github.com/serendipityshe/JUZHEN_ABLATION",
+  "repository": "https://github.com/serendipityshe/JUZHEN_ABLATION",
+  "license": "MIT-0",
+  "keywords": [
+    "autolab",
+    "paper-reproduction",
+    "deep-learning",
+    "experiments",
+    "baseline-comparison"
+  ],
+  "skills": "./skills/",
+  "apps": "./.app.json",
+  "interface": {
+    "displayName": "Matrix-AutoLab",
+    "shortDescription": "Paper-to-experiment workflow with figure generation, implementation, ablations, baselines, and a local dashboard.",
+    "longDescription": "Matrix-AutoLab packages PaperBanana, AutoLab, AutoBaseline, local .autolab recording utilities, and a read-only dashboard into one plugin. Use the unified matrix-autolab entry for guided paper reproduction, implementation, training, ablations, and baseline comparisons, or call specialized entries directly when needed.",
+    "developerName": "Matrix-AutoLab Contributors",
+    "category": "Research",
+    "capabilities": [
+      "Skills",
+      "Workflow",
+      "Write",
+      "Apps"
+    ],
+    "websiteURL": "https://github.com/serendipityshe/JUZHEN_ABLATION",
+    "privacyPolicyURL": "",
+    "termsOfServiceURL": "",
+    "defaultPrompt": [
+      "根据 main.tex 帮我完成论文方法实现、训练和相关消融实验。",
+      "使用 matrix-autolab 从上次确认的阶段继续我的 AutoLab 实验。",
+      "Use matrix-autolab to start a paper reproduction workflow.",
+      "Resume my AutoLab experiment from the last confirmed phase.",
+      "Run baseline comparison for my completed AutoLab project."
+    ],
+    "brandColor": "#2563EB"
+  }
+}

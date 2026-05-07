@@ -1,1 +1,24 @@
+# Python caches
+__pycache__/
+*.py[cod]
 
+# Node dependencies and build outputs
+node_modules/
+.next/
+dist/
+build/
+
+# Local AutoLab experiment records
+.autolab/
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
