@@ -1,20 +1,56 @@
-# Python caches
-__pycache__/
-*.py[cod]
-
-# Node dependencies and build outputs
+# Dependencies
 node_modules/
+
+# Package manager caches
+.npm/
+.pnpm-store/
+.yarn/
+!.yarn/patches/
+!.yarn/plugins/
+!.yarn/releases/
+!.yarn/sdks/
+!.yarn/versions/
+
+# Build output
 .next/
+.turbo/
 dist/
 build/
+coverage/
+out/
 
-# Local AutoLab experiment records
+# Python caches and tooling
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Local AutoLab experiment records and generated research output
 .autolab/
+runs/
+outputs/
+logs/
+wandb/
+lightning_logs/
+tensorboard/
+mlruns/
+checkpoints/
+*.ckpt
+*.pt
+*.pth
+*.onnx
+*.safetensors
 
-# Environment files
+# Environment files and credentials
 .env
 .env.*
 !.env.example
+*.pem
+*.key
+*.crt
 
 # Logs
 *.log
@@ -22,3 +58,9 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
+
+# Editor and OS files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
