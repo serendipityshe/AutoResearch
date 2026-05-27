@@ -10,8 +10,7 @@
   "homepage": "https://github.com/serendipityshe/JUZHEN_ABLATION",
   "repository": {
     "type": "git",
-    "url": "https://github.com/serendipityshe/JUZHEN_ABLATION.git",
-    "directory": "plugins/matrix-autolab"
+    "url": "https://github.com/serendipityshe/JUZHEN_ABLATION.git"
   },
   "keywords": [
     "codex-plugin",

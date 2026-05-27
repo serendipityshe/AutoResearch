@@ -1,22 +1,12 @@
-# AutoLab
+# Matrix-AutoLab Plugin
 
-AutoLab is the source repository for the `@dreamweaverai/matrix-autolab` npm package. The package distributes a Codex-style plugin for paper-to-experiment workflows, including coordinated skills, local recording scripts, and a read-only dashboard.
+Matrix-AutoLab is a Codex-style plugin for paper-to-experiment workflows. It packages coordinated skills, local recording scripts, and a local-first dashboard app.
 
-## Package
-
-The published npm package is:
+This repository is laid out as the npm package root for:
 
 ```text
 @dreamweaverai/matrix-autolab
 ```
-
-Current package source lives under:
-
-```text
-plugins/matrix-autolab/
-```
-
-The dashboard package under `plugins/matrix-autolab/apps/dashboard` is private and is bundled as part of the plugin package. It is not published as a separate npm package.
 
 ## What It Includes
 
@@ -25,19 +15,14 @@ The dashboard package under `plugins/matrix-autolab/apps/dashboard` is private a
 - `autolab`: method implementation, training, evaluation, and ablations
 - `autobaseline`: SOTA baseline training and comparison
 - `scripts/`: local `.autolab/` recording utilities
-- `apps/dashboard`: local-first read-only dashboard for runs, metrics, reports, artifacts, and sync readiness
+- `apps/dashboard`: read-only local dashboard for workflow, runs, metrics, failures, reports, artifacts, and sync readiness
 
 ## Install From npm
 
-Install the published package globally:
+Install the package and copy the plugin into the local Codex plugin directory:
 
 ```bash
 npm install -g @dreamweaverai/matrix-autolab
-```
-
-Copy the plugin into the local Codex plugin directory:
-
-```bash
 matrix-autolab install
 ```
 
@@ -53,24 +38,70 @@ Install dashboard dependencies during plugin installation:
 matrix-autolab install --install-dashboard
 ```
 
-## Use In a Project
-
-Start from a research project that contains a paper source such as `main.tex` and the baseline code or dataset you want to reproduce against.
-
-Recommended prompt:
+## Recommended Prompt
 
 ```text
 根据 main.tex 帮我完成论文方法实现、训练和相关消融实验。请按阶段推进，每个阶段生成报告并等待我确认。
 ```
 
-AutoLab records local workflow state under `.autolab/` in the target research project. That directory is local experiment state and should not be committed to this source repository.
+## Anti-Skip Control Plane
+
+Long paper-reproduction runs must be driven by local gate files, not only by chat memory or checklist prose. Each run created by `start-run` initializes:
+
+- `.autolab/runs/<run_id>/phase_plan.json`: strict sequential phase map
+- `.autolab/runs/<run_id>/requirements.json`: paper and experiment requirements with evidence
+- `.autolab/runs/<run_id>/gate_status.json`: the single current executable step
+
+Before work starts on a phase or substep, declare the gate:
+
+```bash
+python scripts/autolab_gate.py start-step --run-id <run_id> --phase phase_4_modules --step module_name --requirement method.module_name --required-artifact experiment_docs/reports/phase_4_modules_report.md --check "implementation, smoke test, and report evidence are present" --user-confirmation-required
+```
+
+Before completing that step, run:
+
+```bash
+python scripts/autolab_gate.py check-step --run-id <run_id>
+```
+
+If the gate reports blockers, stop and resolve them instead of moving forward. Use `define-requirement` and `add-evidence` to map paper details to concrete files, commands, tests, reports, and metrics.
+
+## Package Structure
+
+```text
+matrix-autolab/
+  .codex-plugin/plugin.json
+  .app.json
+  apps/dashboard/
+  bin/
+  scripts/
+  skills/
+  package.json
+  PUBLISHING.md
+  README.md
+```
+
+## Development
+
+Run a package health check:
+
+```bash
+npm run doctor
+```
+
+Review package contents before publishing:
+
+```bash
+npm run pack:dry-run
+```
+
+The npm package uses a `files` whitelist and `.npmignore` denylist so local experiment records, logs, dependencies, build output, credentials, checkpoints, and model weights are not published.
 
 ## Local Dashboard
 
-From the dashboard directory:
+From `apps/dashboard`:
 
 ```bash
-cd plugins/matrix-autolab/apps/dashboard
 npm install
 npm run dev
 ```
@@ -81,41 +112,27 @@ Open:
 http://127.0.0.1:3217
 ```
 
-The dashboard is local-first and read-only. It does not upload data or mutate experiment records.
+The dashboard is local-first and read-only in the first version. It does not upload data or mutate experiment records.
 
-## Development
+## Local Recording
 
-Work on the package from:
-
-```bash
-cd plugins/matrix-autolab
-```
-
-Run the plugin health check:
+Initialize local project records from the project root:
 
 ```bash
-npm run doctor
+python scripts/autolab_run.py init-project
 ```
 
-Review the package contents before publishing:
+Start a run:
 
 ```bash
-npm run pack:dry-run
+python scripts/autolab_run.py start-run --kind paper_reproduction --entry-skill matrix-autolab
 ```
 
-The package uses a `files` whitelist in `package.json` and a `.npmignore` denylist so local experiment records, dependencies, build output, credentials, checkpoints, and model weights are not published.
+Record events, metrics, errors, artifacts, reports, and changed files with the scripts in `scripts/`.
 
 ## Source Control
 
-Track these source files:
-
-```text
-.gitignore
-README.md
-plugins/matrix-autolab/
-```
-
-Do not commit generated or local-only files:
+This repository should track the plugin package source directly from the repository root. Do not commit generated or local-only files such as:
 
 ```text
 node_modules/
@@ -134,43 +151,3 @@ logs/
 *.onnx
 *.safetensors
 ```
-
-## Repository Layout
-
-```text
-AutoLab/
-  .gitignore
-  README.md
-  plugins/
-    matrix-autolab/
-      .codex-plugin/
-      apps/dashboard/
-      bin/
-      scripts/
-      skills/
-      package.json
-      PUBLISHING.md
-      README.md
-```
-
-## Publishing
-
-Before publishing, run:
-
-```bash
-cd plugins/matrix-autolab
-npm run doctor
-npm run pack:dry-run
-```
-
-Check that the package does not include local experiment records, credentials, dependency directories, build output, datasets, checkpoints, model weights, logs, or personal machine paths.
-
-Publishing notes are maintained in:
-
-```text
-plugins/matrix-autolab/PUBLISHING.md
-```
-
-## License
-
-The npm package is declared as `MIT-0` in `plugins/matrix-autolab/package.json`.
