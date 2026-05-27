@@ -19,7 +19,7 @@ matrix-research-autopilot
 │  ├─ PubMed adapter
 │  └─ Zotero adapter
 ├─ Matrix-AutoLab execution layer
-└─ Nature-Skills writing layer
+└─ Built-in Nature Skills writing layer
 ```
 
 The Discovery Layer is adapter-based. Do not make `ml-intern` the architecture root or a hard runtime dependency. If useful, extract only specific `ml-intern` ideas behind adapters, such as paper operations or example-first GitHub search. The source of truth remains the protocol artifacts and validators in this plugin.
@@ -64,7 +64,7 @@ Create or update these artifacts under `.autolab/runs/<run_id>/` when a run exis
 | `paper_requirements.json` | Method modules, losses, datasets, metrics, baselines, and implementation requirements from `main.tex`, a selected paper, or a scaffold. |
 | `experiment_matrix.json` | Main experiment, ablations, baselines, metrics, budgets, server target, and Matrix-AutoLab handoff status. |
 | `manuscript_claims.json` | Claim-to-evidence map. Only supported claims may enter final writing. |
-| `writing_packet.md` | Evidence-grounded input for Nature-Skills writing, figures, captions, citations, and Chinese reviewer notes. |
+| `writing_packet.md` | Evidence-grounded input for built-in Nature Skills writing, figures, captions, citations, data statements, and Chinese reviewer notes. |
 
 ## Research Discovery Layer
 
@@ -94,7 +94,7 @@ research idea
 -> Matrix-AutoLab execution layer
 -> manuscript_claims.json
 -> writing_packet.md
--> Nature-Skills writing layer
+-> built-in Nature Skills writing layer
 ```
 
 ## Phase 1: Research Discovery
@@ -195,9 +195,9 @@ Claims with no evidence must be marked `needs_evidence` and excluded from final 
 python scripts/research_autopilot.py validate-claims --run-id <run_id>
 ```
 
-## Phase 6: Nature-Skills Writing Layer
+## Phase 6: Built-In Nature Skills Writing Layer
 
-Create `writing_packet.md` before invoking writing or figure skills. Prefer:
+Create `writing_packet.md` before invoking the built-in Nature Skills. Prefer:
 
 ```bash
 python scripts/research_autopilot.py build-writing-packet --run-id <run_id> --argument "<confirmed research argument>"
@@ -217,10 +217,12 @@ python scripts/research_autopilot.py build-writing-packet --run-id <run_id> --ar
 Default output policy:
 
 - Provide Chinese notes explaining logic, evidence gaps, and revision risks.
-- Draft English manuscript text for Results, Discussion, figure captions, and claim-evidence maps.
-- Use `nature-writing` for argument and prose.
-- Use `nature-figure` for publication figures after the user chooses Python or R.
-- Use `nature-citation` when claims need supporting references or reference export.
+- Use built-in `nature-writing` for Results, Discussion, Abstract, figure captions, and claim-evidence prose.
+- `nature-writing` may only draft from supported claims in `writing_packet.md`; `needs_evidence` claims stay in limitations or missing-evidence notes.
+- Use built-in `nature-figure` with `experiment_matrix.json`, result CSV files, phase reports, and figure contracts to plan or generate publication figures.
+- Use built-in `nature-citation` only for background, related-work, discussion, method-context, and already verified literature claims; do not use citations to fabricate support for experimental results.
+- Use built-in `nature-data` for Data Availability statements, FAIR checks, repository plans, dataset citations, and Chinese-to-English author notes.
+- Use `nature-polishing`, `nature-response`, `nature-reader`, `nature-paper2ppt`, and `nature-academic-search` when the user asks for polishing, revision replies, paper reading, presentations, or additional literature verification.
 
 ## Evidence Rules
 
@@ -238,7 +240,7 @@ Ask for explicit confirmation at these points:
 2. After route selection, before creating `paper_requirements.json` or manuscript scaffold.
 3. Before handing off to `matrix-autolab`.
 4. At every `matrix-autolab`, `autolab`, and `autobaseline` phase gate.
-5. Before using Nature-Skills to produce final manuscript prose.
+5. Before using built-in Nature Skills to produce final manuscript prose, figures, citations, or data statements.
 
 ## Recovery
 

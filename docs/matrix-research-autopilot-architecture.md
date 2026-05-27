@@ -15,10 +15,10 @@ research idea
 -> Matrix-AutoLab execution layer
 -> experiment reports and metrics
 -> manuscript_claims.json
--> Nature-Skills writing layer
+-> built-in Nature Skills writing layer
 ```
 
-`ml-intern` is no longer treated as the integration root. It may provide extractable implementation ideas, but the product architecture is `matrix-research-autopilot` plus adapter protocols, Matrix-AutoLab execution, and Nature-Skills writing.
+`ml-intern` is no longer treated as the integration root. It may provide extractable implementation ideas, but the product architecture is `matrix-research-autopilot` plus adapter protocols, Matrix-AutoLab execution, and built-in Nature Skills writing.
 
 ## Layered Architecture
 
@@ -32,7 +32,7 @@ matrix-research-autopilot
 │  ├─ PubMed adapter
 │  └─ Zotero adapter
 ├─ Matrix-AutoLab execution layer
-└─ Nature-Skills writing layer
+└─ Built-in Nature Skills writing layer
 ```
 
 ## Component Roles
@@ -40,7 +40,7 @@ matrix-research-autopilot
 - `matrix-research-autopilot`: idea-to-paper controller. It creates research briefs, normalizes search evidence, selects routes, prepares experiment matrices, validates claims, and builds writing packets.
 - Research Discovery Layer: a set of adapters that can use available tools, MCP servers, skills, manual sources, or future agent modules while writing the same `search_evidence.json` contract.
 - Matrix-AutoLab execution layer: gated execution for `paperbanana`, `autolab`, and `autobaseline`.
-- Nature-Skills writing layer: evidence-grounded writing, figures, citations, data statements, and Chinese revision notes.
+- Built-in Nature Skills writing layer: evidence-grounded writing, figures, citations, data statements, polishing, reader, reviewer response, paper-to-PPT, and academic search skills.
 
 ## Research Discovery Adapters
 
@@ -66,7 +66,7 @@ Use `.autolab/runs/<run_id>/` when a run exists. Before local recording is initi
 | `paper_requirements.json` | Method modules, losses, datasets, metrics, baselines, and implementation requirements from `main.tex`, a selected paper, or scaffold. |
 | `experiment_matrix.json` | Main experiment, ablations, baselines, metrics, budgets, server target, and Matrix-AutoLab handoff status. |
 | `manuscript_claims.json` | Claim-to-evidence map with `supported`, `partial`, or `needs_evidence` status. |
-| `writing_packet.md` | Evidence-grounded input for Nature-Skills writing, figures, citations, and data statements. |
+| `writing_packet.md` | Evidence-grounded input for built-in Nature Skills writing, figures, citations, and data statements. |
 
 ## Deterministic Utilities
 
@@ -98,7 +98,14 @@ python scripts/research_autopilot.py validate-claims
 10. Matrix-AutoLab runs `paperbanana`, `autolab`, and `autobaseline` with existing gates.
 11. After experiment reports and metrics exist, `matrix-research-autopilot` creates `manuscript_claims.json`.
 12. `build-writing-packet` puts only supported claims into the drafting section.
-13. Nature-Skills produces Chinese explanation plus English Results, Discussion, figure captions, claim-evidence maps, and publication-quality figure contracts.
+13. Built-in Nature Skills produce Chinese explanation plus English manuscript sections, publication-quality figure contracts or figures, citation exports, data availability statements, polishing, reviewer responses, readers, and paper-to-PPT outputs as requested.
+
+The core idea-to-paper handoff uses:
+
+- `nature-writing` for manuscript argument and prose from supported claims.
+- `nature-figure` for figure contracts and publication figures from experiment evidence.
+- `nature-citation` for background, related-work, discussion, and method-context citations only.
+- `nature-data` for Data Availability, FAIR, repository, and dataset citation work.
 
 ## Evidence-Gated Writing
 
@@ -124,6 +131,7 @@ Claims without evidence remain `needs_evidence` and must not be presented as fin
 - `build-writing-packet` excludes unsupported claims from the drafting section.
 - README and plugin prompts make the idea-to-paper path discoverable for Chinese research users.
 - `build-main-tex` can use a user-supplied `main.tex` only as a structural/style template while excluding that template's scientific content.
+- The package includes all nine built-in `nature-*` skills and the citation/figure resources required by the writing layer.
 - `npm run doctor` succeeds.
 - `npm run pack:dry-run` includes the skill, reference file, docs, and protocol utility script.
 
@@ -133,5 +141,5 @@ Claims without evidence remain `needs_evidence` and must not be presented as fin
 - Dashboard remains read-only and optional.
 - Discovery is protocol-based rather than coupled to a single search agent.
 - `ml-intern` is optional reference material, not the root architecture.
-- Writing output defaults to Chinese reasoning notes plus English manuscript sections.
+- Writing output defaults to Chinese reasoning notes plus English manuscript sections through built-in Nature Skills.
 - DreamweaverAI AutoLab remains responsible for server execution and gated experiment progression.

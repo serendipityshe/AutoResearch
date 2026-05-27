@@ -1,7 +1,7 @@
 {
   "name": "dreamweaverai-autolab",
   "version": "0.1.0",
-  "description": "Unified plugin packaging for adapter-based idea-to-paper research autopilot, PaperBanana, AutoLab, AutoBaseline, local experiment recording, and the Matrix-AutoLab dashboard.",
+  "description": "Unified plugin packaging for adapter-based idea-to-paper research autopilot, PaperBanana, AutoLab, AutoBaseline, built-in Nature Skills writing, local experiment recording, and the Matrix-AutoLab dashboard.",
   "author": {
     "name": "Matrix-AutoLab Contributors",
     "url": "https://github.com/serendipityshe/dreamweaverai-autolab"
@@ -22,20 +22,22 @@
   "apps": "./.app.json",
   "interface": {
     "displayName": "DreamweaverAI AutoLab",
-    "shortDescription": "Idea-to-paper and paper-to-experiment workflow with research search, experiments, ablations, baselines, writing assets, and a local dashboard.",
-    "longDescription": "DreamweaverAI AutoLab packages Matrix Research Autopilot, PaperBanana, AutoLab, AutoBaseline, local .autolab recording utilities, and a read-only dashboard into one plugin. Use matrix-research-autopilot to move from a research idea to an adapter-based Research Discovery Layer, literature/code/data/baseline evidence, experiment planning, server execution, and Nature-style writing assets. Use matrix-autolab for guided paper reproduction, implementation, training, ablations, and baseline comparisons, or call specialized entries directly when needed.",
+    "shortDescription": "Idea-to-paper and paper-to-experiment workflow with research search, experiments, Nature-style writing, figures, citations, and a local dashboard.",
+    "longDescription": "DreamweaverAI AutoLab packages Matrix Research Autopilot, PaperBanana, AutoLab, AutoBaseline, built-in Nature Skills, local .autolab recording utilities, and a read-only dashboard into one plugin. Use matrix-research-autopilot to move from a research idea to an adapter-based Research Discovery Layer, literature/code/data/baseline evidence, experiment planning, server execution, evidence-gated manuscript claims, and Nature-style writing assets. Use the built-in nature-writing, nature-figure, nature-citation, nature-data, nature-polishing, nature-reader, nature-response, nature-paper2ppt, and nature-academic-search skills for manuscript prose, publication figures, references, data availability, revision packages, paper reading, and presentations.",
     "developerName": "Matrix-AutoLab Contributors",
     "category": "Research",
     "capabilities": [
       "Skills",
       "Workflow",
       "Write",
+      "Read",
       "Apps"
     ],
     "websiteURL": "https://github.com/serendipityshe/dreamweaverai-autolab",
     "defaultPrompt": [
-      "我有一个研究想法，请使用 matrix-research-autopilot 的 Research Discovery Layer 帮我完成 web/GitHub/Hugging Face/arXiv/Semantic Scholar/PubMed/Zotero 搜索、研究路线推荐、实验计划和论文写作准备。",
-      "Use matrix-research-autopilot to turn my research idea into adapter-normalized discovery evidence, an experiment plan, a Matrix-AutoLab run, and a Nature-style writing packet.",
+      "我有一个研究想法，请使用 matrix-research-autopilot 完成搜索、实验计划、AutoLab 实验和 Nature 风格论文写作准备。",
+      "Use matrix-research-autopilot to turn my idea into evidence, experiments, supported claims, and Nature-style writing.",
+      "根据 writing_packet.md 使用 nature-writing、nature-figure、nature-citation 和 nature-data 准备论文写作层。",
       "根据 main.tex 帮我完成论文方法实现、训练和相关消融实验。",
       "使用 matrix-autolab 从上次确认的阶段继续我的 AutoLab 实验。",
       "Use matrix-autolab to start a paper reproduction workflow.",

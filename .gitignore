@@ -19,10 +19,14 @@ env/
 .turbo/
 .vercel/
 .cache/
+.tmp/
+tmp/
+temp/
 dist/
 build/
 coverage/
 out/
+*.tmp
 *.tsbuildinfo
 *.tgz
 
@@ -33,6 +37,13 @@ __pycache__/
 .hypothesis/
 .mypy_cache/
 .ruff_cache/
+.tox/
+.nox/
+.eggs/
+*.egg-info/
+pip-wheel-metadata/
+__pypackages__/
+.ipynb_checkpoints/
 .coverage
 coverage.xml
 htmlcov/
@@ -52,8 +63,11 @@ checkpoints/
 *.pth
 *.onnx
 *.safetensors
+*.db
+*.db-journal
 *.sqlite
 *.sqlite3
+*.sqlite-*
 
 # LaTeX and manuscript build artifacts
 *.aux
@@ -76,6 +90,10 @@ checkpoints/
 *.pem
 *.key
 *.crt
+*.p12
+*.pfx
+credentials*.json
+service-account*.json
 
 # Logs
 *.log
@@ -88,5 +106,7 @@ pnpm-debug.log*
 .vscode/
 .idea/
 .vs/
+.codex/
+.claude/
 .DS_Store
 Thumbs.db

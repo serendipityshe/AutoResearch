@@ -184,10 +184,22 @@ function requiredFiles() {
     "skills/matrix-autolab/SKILL.md",
     "skills/autolab/SKILL.md",
     "skills/autobaseline/SKILL.md",
+    "skills/nature-academic-search/SKILL.md",
+    "skills/nature-citation/SKILL.md",
+    "skills/nature-citation/scripts/nature_citation.py",
+    "skills/nature-data/SKILL.md",
+    "skills/nature-figure/SKILL.md",
+    "skills/nature-figure/references/figure-contract.md",
+    "skills/nature-paper2ppt/SKILL.md",
+    "skills/nature-polishing/SKILL.md",
+    "skills/nature-reader/SKILL.md",
+    "skills/nature-response/SKILL.md",
+    "skills/nature-writing/SKILL.md",
     "scripts/research_autopilot.py",
     "scripts/autolab_gate.py",
     "apps/dashboard/package.json",
-    "docs/matrix-research-autopilot-architecture.md"
+    "docs/matrix-research-autopilot-architecture.md",
+    "docs/third-party-nature-skills-LICENSE.md"
   ];
 }
 
