@@ -35,7 +35,7 @@ production use should still export SVG/PDF from the plotting script.
 | Single-cell systems figure | <a href="assets/gallery/fig4-single-cell-systems-rich.png"><img src="assets/gallery/fig4-single-cell-systems-rich.png" width="260" alt="Single-cell systems figure"></a> | UMAP-style embedding, composition, marker heatmap, pseudotime, volcano plot, enrichment, ligand-receptor bubble matrix and spatial niche adjacency |
 | Perturbation validation | <a href="assets/gallery/fig5-validation-perturbation-rich.png"><img src="assets/gallery/fig5-validation-perturbation-rich.png" width="260" alt="Perturbation validation"></a> | Mechanistic perturbation timeline, relapse endpoint, polar summary, dose response, synergy matrix, biodistribution, cytokines, flow-like scatter and safety score |
 
-**Gallery file policy**  
+**Gallery file policy**
 Keep only lightweight PNG previews in `assets/gallery/`. Do not commit large generated
 SVG/PDF outputs unless they are needed for a tutorial, because real users should regenerate
 editable outputs from source data and scripts.
@@ -120,13 +120,13 @@ plt.rcParams['font.sans-serif'] = ['Arial', 'DejaVu Sans', 'Liberation Sans']
 plt.rcParams['svg.fonttype'] = 'none'
 ```
 
-**Why `svg.fonttype = 'none'`**  
+**Why `svg.fonttype = 'none'`**
 Matplotlib's default (`'path'`) converts every glyph to a bezier curve. The result is
 visually identical but every `<text>` element becomes a `<path d="M...">` — unselectable,
-unsearchable, and impossible to realign in Illustrator or Inkscape.  
+unsearchable, and impossible to realign in Illustrator or Inkscape.
 With `'none'`, text stays as SVG `<text>` nodes. Font substitution happens at render time.
 
-**Why three fonts in the stack**  
+**Why three fonts in the stack**
 `Arial` is standard on macOS/Windows. `DejaVu Sans` ships with matplotlib and is the
 Linux fallback. `Liberation Sans` is metric-compatible with Arial on RHEL/Ubuntu.
 The cascade guarantees identical letter-spacing on all platforms.
@@ -221,11 +221,11 @@ PALETTE = {
 }
 ```
 
-**Semantic mapping convention**  
+**Semantic mapping convention**
 `blue_main` = your method / hero series. `green_3` = positive variants. `red_strong` = baselines.
 `neutral_light` = reference / background. Apply this consistently across every panel in the figure.
 
-**Unified palette policy (recommended for recent Nature Machine Intelligence-style layouts)**  
+**Unified palette policy (recommended for recent Nature Machine Intelligence-style layouts)**
 Do not maximize hue separation by default. In dense multi-panel figures, prefer **one coherent baseline family**
 and **one coherent hero family**, then reserve green/red for delta markers or genuinely signed semantics.
 
@@ -271,7 +271,7 @@ Use `DEFAULT_COLORS_NMI_PASTEL` when:
 - building 1-page result atlases where multiple panels must feel visually unified
 - matching low-saturation editorial styling rather than maximum category separation
 
-**Practical rule**  
+**Practical rule**
 The same method family keeps the same hue family in every panel. Do not recolor a model from blue-grey in panel `a`
 to green in panel `d` just because that panel needs more contrast.
 
@@ -396,7 +396,7 @@ ax.spines['bottom'].set_linewidth(2)        # thicker for emphasis
 ax.spines['left'].set_linewidth(2)
 ```
 
-No gridlines by default. Use sparse `set_yticks` to guide the eye.  
+No gridlines by default. Use sparse `set_yticks` to guide the eye.
 Y-limits tightened to data range — never use `0–100` when all values sit in `80–95`.
 
 ---
