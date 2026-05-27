@@ -16,6 +16,7 @@ AUTOLAB_DIR = ".autolab"
 RUN_STATUS = {"in_progress", "blocked", "failed", "completed", "aborted"}
 SKILL_STATUS = {"pending", "in_progress", "blocked", "failed", "completed", "skipped"}
 RUN_KINDS = {
+    "idea_to_paper",
     "paper_reproduction",
     "figure_generation",
     "method_implementation",
@@ -57,7 +58,7 @@ def read_json(path: Path, default: Any) -> Any:
     if not path.exists():
         return default
     try:
-        return json.loads(path.read_text(encoding="utf-8"))
+        return json.loads(path.read_text(encoding="utf-8-sig"))
     except json.JSONDecodeError as exc:
         raise ValueError(f"Invalid JSON in {path}: {exc}") from exc
 

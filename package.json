@@ -1,21 +1,23 @@
 {
   "name": "@dreamweaverai/matrix-autolab",
   "version": "0.1.0",
-  "description": "Matrix-AutoLab Codex plugin for paper-to-experiment workflows.",
+  "description": "Matrix-AutoLab Codex plugin for idea-to-paper and paper-to-experiment workflows.",
   "license": "MIT-0",
   "author": {
     "name": "Matrix-AutoLab Contributors",
-    "url": "https://github.com/serendipityshe/JUZHEN_ABLATION"
+    "url": "https://github.com/serendipityshe/dreamweaverai-autolab"
   },
-  "homepage": "https://github.com/serendipityshe/JUZHEN_ABLATION",
+  "homepage": "https://github.com/serendipityshe/dreamweaverai-autolab",
   "repository": {
     "type": "git",
-    "url": "https://github.com/serendipityshe/JUZHEN_ABLATION.git"
+    "url": "https://github.com/serendipityshe/dreamweaverai-autolab.git"
   },
   "keywords": [
     "codex-plugin",
     "autolab",
+    "idea-to-paper",
     "paper-reproduction",
+    "research-autopilot",
     "deep-learning",
     "experiments"
   ],
@@ -35,6 +37,7 @@
     "apps/dashboard/tailwind.config.ts",
     "apps/dashboard/tsconfig.json",
     "bin/",
+    "docs/",
     "PUBLISHING.md",
     "README.md",
     "scripts/autolab_collect.py",
@@ -43,6 +46,7 @@
     "scripts/autolab_environment.py",
     "scripts/autolab_event.py",
     "scripts/autolab_gate.py",
+    "scripts/research_autopilot.py",
     "scripts/autolab_run.py",
     "skills/"
   ],

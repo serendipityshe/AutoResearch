@@ -1,5 +1,8 @@
 # Dependencies
 node_modules/
+.venv/
+venv/
+env/
 
 # Package manager caches
 .npm/
@@ -14,18 +17,24 @@ node_modules/
 # Build output
 .next/
 .turbo/
+.vercel/
+.cache/
 dist/
 build/
 coverage/
 out/
+*.tsbuildinfo
+*.tgz
 
 # Python caches and tooling
 __pycache__/
 *.py[cod]
 .pytest_cache/
+.hypothesis/
 .mypy_cache/
 .ruff_cache/
 .coverage
+coverage.xml
 htmlcov/
 
 # Local AutoLab experiment records and generated research output
@@ -43,6 +52,22 @@ checkpoints/
 *.pth
 *.onnx
 *.safetensors
+*.sqlite
+*.sqlite3
+
+# LaTeX and manuscript build artifacts
+*.aux
+*.bbl
+*.bcf
+*.blg
+*.fdb_latexmk
+*.fls
+*.lof
+*.lot
+*.out
+*.run.xml
+*.synctex.gz
+*.toc
 
 # Environment files and credentials
 .env
@@ -62,5 +87,6 @@ pnpm-debug.log*
 # Editor and OS files
 .vscode/
 .idea/
+.vs/
 .DS_Store
 Thumbs.db

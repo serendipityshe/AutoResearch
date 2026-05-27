@@ -7,8 +7,9 @@ const os = require("node:os");
 const path = require("node:path");
 
 const PACKAGE_ROOT = path.resolve(__dirname, "..");
-const PLUGIN_NAME = "matrix-autolab";
-const COPY_ENTRIES = [".codex-plugin", ".app.json", "skills", "scripts", "apps", "README.md"];
+const PLUGIN_NAME = "dreamweaverai-autolab";
+const MARKETPLACE_NAME = "personal";
+const COPY_ENTRIES = [".codex-plugin", ".app.json", "skills", "scripts", "apps", "docs", "README.md"];
 const BLOCKED_NAMES = new Set([
   ".autolab",
   ".git",
@@ -49,7 +50,7 @@ function parseArgs(argv) {
       continue;
     }
     const key = value.slice(2);
-    if (["target", "codex-home"].includes(key)) {
+    if (["target", "codex-home", "marketplace-path"].includes(key)) {
       const next = argv[index + 1];
       if (!next) throw new Error(`Missing value for --${key}`);
       args[key] = next;
@@ -66,11 +67,12 @@ function usage() {
     "Matrix-AutoLab Codex plugin installer",
     "",
     "Usage:",
-    "  matrix-autolab install [--target <dir>] [--codex-home <dir>] [--force] [--dry-run] [--install-dashboard]",
+    "  matrix-autolab install [--target <dir>] [--codex-home <dir>] [--marketplace-path <file>] [--force] [--dry-run] [--install-dashboard] [--skip-marketplace]",
     "  matrix-autolab doctor",
     "",
     "Defaults:",
-    "  --target is $CODEX_PLUGIN_DIR or <codex-home>/plugins/matrix-autolab",
+    "  --target is $CODEX_PLUGIN_DIR or ~/plugins/dreamweaverai-autolab",
+    "  --marketplace-path is ~/.agents/plugins/marketplace.json",
     "  --codex-home is $CODEX_HOME or ~/.codex"
   ].join("\n");
 }
@@ -82,7 +84,12 @@ function codexHome(args) {
 function targetDir(args) {
   if (args.target) return path.resolve(args.target);
   if (process.env.CODEX_PLUGIN_DIR) return path.resolve(process.env.CODEX_PLUGIN_DIR);
-  return path.join(codexHome(args), "plugins", PLUGIN_NAME);
+  return path.join(os.homedir(), "plugins", PLUGIN_NAME);
+}
+
+function marketplacePath(args) {
+  if (args["marketplace-path"]) return path.resolve(args["marketplace-path"]);
+  return path.join(os.homedir(), ".agents", "plugins", "marketplace.json");
 }
 
 function isBlocked(filePath) {
@@ -111,15 +118,76 @@ function copyRecursive(source, destination, copied) {
   copied.push(path.relative(PACKAGE_ROOT, source).replace(/\\/g, "/"));
 }
 
+function readJsonObject(filePath) {
+  if (!fs.existsSync(filePath)) return null;
+  const payload = JSON.parse(fs.readFileSync(filePath, "utf8"));
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
+    throw new Error(`${filePath} must contain a JSON object.`);
+  }
+  return payload;
+}
+
+function writeJson(filePath, payload) {
+  fs.mkdirSync(path.dirname(filePath), { recursive: true });
+  fs.writeFileSync(filePath, `${JSON.stringify(payload, null, 2)}\n`, "utf8");
+}
+
+function updateMarketplace(filePath) {
+  const payload = readJsonObject(filePath) || {
+    name: MARKETPLACE_NAME,
+    interface: {
+      displayName: "Personal"
+    },
+    plugins: []
+  };
+
+  if (typeof payload.name !== "string" || !payload.name.trim()) {
+    payload.name = MARKETPLACE_NAME;
+  }
+  if (!payload.interface || typeof payload.interface !== "object" || Array.isArray(payload.interface)) {
+    payload.interface = { displayName: "Personal" };
+  }
+  if (!Array.isArray(payload.plugins)) {
+    throw new Error(`${filePath} field 'plugins' must be an array.`);
+  }
+
+  const entry = {
+    name: PLUGIN_NAME,
+    source: {
+      source: "local",
+      path: `./plugins/${PLUGIN_NAME}`
+    },
+    policy: {
+      installation: "AVAILABLE",
+      authentication: "ON_INSTALL"
+    },
+    category: "Research"
+  };
+
+  const existingIndex = payload.plugins.findIndex((plugin) => plugin && plugin.name === PLUGIN_NAME);
+  if (existingIndex === -1) {
+    payload.plugins.push(entry);
+  } else {
+    payload.plugins[existingIndex] = entry;
+  }
+
+  writeJson(filePath, payload);
+  return { marketplace: filePath, marketplaceName: payload.name };
+}
+
 function requiredFiles() {
   return [
     ".codex-plugin/plugin.json",
     ".app.json",
+    "skills/matrix-research-autopilot/SKILL.md",
+    "skills/matrix-research-autopilot/references/discovery-layer.md",
     "skills/matrix-autolab/SKILL.md",
     "skills/autolab/SKILL.md",
     "skills/autobaseline/SKILL.md",
+    "scripts/research_autopilot.py",
     "scripts/autolab_gate.py",
-    "apps/dashboard/package.json"
+    "apps/dashboard/package.json",
+    "docs/matrix-research-autopilot-architecture.md"
   ];
 }
 
@@ -156,9 +224,10 @@ function doctor() {
 
 function install(args) {
   const target = targetDir(args);
+  const marketplace = marketplacePath(args);
   const copied = [];
   if (args["dry-run"]) {
-    console.log(JSON.stringify({ dryRun: true, target }, null, 2));
+    console.log(JSON.stringify({ dryRun: true, target, marketplace }, null, 2));
     return 0;
   }
   if (fs.existsSync(target) && !args.force) {
@@ -167,12 +236,13 @@ function install(args) {
   removeIfExists(target);
   fs.mkdirSync(target, { recursive: true });
   for (const entry of COPY_ENTRIES) copyRecursive(path.join(PACKAGE_ROOT, entry), path.join(target, entry), copied);
+  const marketplaceResult = args["skip-marketplace"] ? null : updateMarketplace(marketplace);
   if (args["install-dashboard"]) {
     const dashboard = path.join(target, "apps", "dashboard");
     const result = childProcess.spawnSync("npm", ["install"], { cwd: dashboard, stdio: "inherit", shell: process.platform === "win32" });
     if (result.status !== 0) return result.status || 1;
   }
-  console.log(JSON.stringify({ installed: true, target, copied: copied.length }, null, 2));
+  console.log(JSON.stringify({ installed: true, target, copied: copied.length, marketplace: marketplaceResult }, null, 2));
   return 0;
 }
 

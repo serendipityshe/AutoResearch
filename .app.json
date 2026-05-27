@@ -1,15 +1,7 @@
 {
   "apps": {
     "dashboard": {
-      "name": "matrix-autolab-dashboard",
-      "displayName": "Matrix-AutoLab 实验面板",
-      "description": "Local-first workflow, run, metric, failure, report, artifact, and sync-readiness visualization for Matrix-AutoLab.",
-      "path": "./apps/dashboard",
-      "devCommand": "npm run dev",
-      "startCommand": "npm run start",
-      "url": "http://127.0.0.1:3217",
-      "localFirst": true,
-      "readOnly": true
+      "id": "matrix-autolab-dashboard"
     }
   }
 }
