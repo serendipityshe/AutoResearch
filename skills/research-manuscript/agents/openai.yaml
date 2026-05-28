@@ -1,0 +1,8 @@
+interface:
+  display_name: "Research Manuscript"
+  short_description: "Render and audit evidence-grounded main.tex drafts"
+  brand_color: "#7C3AED"
+  default_prompt: "Use $research-manuscript to turn my validated research design into an audited English main.tex draft."
+
+policy:
+  allow_implicit_invocation: true

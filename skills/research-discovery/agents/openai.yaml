@@ -1,0 +1,8 @@
+interface:
+  display_name: "Research Discovery"
+  short_description: "Find datasets, papers, baselines, and route candidates"
+  brand_color: "#2563EB"
+  default_prompt: "Use $research-discovery to turn my research idea into datasets, frontier evidence, baselines, and route candidates."
+
+policy:
+  allow_implicit_invocation: true

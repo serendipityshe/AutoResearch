@@ -48,12 +48,13 @@ research idea
 
 `main.tex` 出现在研究路线确认之后。
 
-如果你从 idea 开始，`matrix-research-autopilot` 会先搜索并生成 `research_brief.md` 和 `search_evidence.json`。你确认研究路线后，如果还没有论文源码，它会按实验型 manuscript scaffold 生成 `main.tex`。如果你提供了模板，例如 `D:/DreamweaverAI/test/main.tex`，插件只参考模板的结构、章节组织和写作风格，不复制模板论文的内容、方法、数据集、引用或结果。
+如果你从 idea 开始，`matrix-research-autopilot` 会先搜索并生成 `research_brief.md` 和 `search_evidence.json`。你确认研究路线后，如果还没有论文源码，它必须先生成 `research_design.json`：其中包含数据集角色、前沿研究方向、领域难点、现有方法问题、至少三个带公式的方法模块、总损失和消融计划。`build-main-tex` 会先校验这个设计稿；如果缺少合格设计稿，它会失败，不再生成泛泛 scaffold。如果你提供了模板，例如 `D:/DreamweaverAI/test/main.tex`，插件只参考模板的结构、章节组织和写作风格，不复制模板论文的内容、方法、数据集、引用或结果。
 
 可用命令：
 
 ```bash
-python scripts/research_autopilot.py build-main-tex --template "D:/DreamweaverAI/test/main.tex" --topic "confirmed research topic"
+python scripts/research_autopilot.py validate-research-design
+python scripts/research_autopilot.py build-main-tex --design-file research_design.json --template "D:/DreamweaverAI/test/main.tex" --topic "confirmed research topic"
 ```
 
 ### 安装和启用
@@ -175,12 +176,13 @@ The central rule is evidence-gated writing. Only `supported` claims may enter ma
 
 `main.tex` is generated after the research route is confirmed.
 
-When starting from an idea, `matrix-research-autopilot` first creates `research_brief.md` and `search_evidence.json`. After you confirm the route, it can generate an experiment-first manuscript scaffold. If you provide a template such as `D:/DreamweaverAI/test/main.tex`, the plugin uses it only for structure, section organization, and style. It must not copy the template paper's content, methods, datasets, citations, claims, or results.
+When starting from an idea, `matrix-research-autopilot` first creates `research_brief.md` and `search_evidence.json`. After you confirm the route, it must create `research_design.json` with dataset roles, frontier directions, domain difficulties, current-method gaps, at least three formula-bearing method modules, an overall objective, and ablations. `build-main-tex` validates that design first; without a valid design, it fails instead of producing a generic scaffold. If you provide a template such as `D:/DreamweaverAI/test/main.tex`, the plugin uses it only for structure, section organization, and style. It must not copy the template paper's content, methods, datasets, citations, claims, or results.
 
 Command example:
 
 ```bash
-python scripts/research_autopilot.py build-main-tex --template "D:/DreamweaverAI/test/main.tex" --topic "confirmed research topic"
+python scripts/research_autopilot.py validate-research-design
+python scripts/research_autopilot.py build-main-tex --design-file research_design.json --template "D:/DreamweaverAI/test/main.tex" --topic "confirmed research topic"
 ```
 
 ### Install And Enable

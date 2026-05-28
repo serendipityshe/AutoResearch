@@ -1,0 +1,8 @@
+interface:
+  display_name: "Research Design"
+  short_description: "Turn a confirmed route into formulas, modules, and experiment logic"
+  brand_color: "#0F766E"
+  default_prompt: "Use $research-design to convert my confirmed research route into research_design.json and a manuscript blueprint."
+
+policy:
+  allow_implicit_invocation: true

@@ -18,6 +18,8 @@ matrix-research-autopilot
 │  ├─ arXiv / Semantic Scholar adapter
 │  ├─ PubMed adapter
 │  └─ Zotero adapter
+├─ Research Design Layer
+├─ Research Manuscript Layer
 ├─ Matrix-AutoLab execution layer
 └─ Built-in Nature Skills writing layer
 ```
@@ -46,7 +48,11 @@ python scripts/research_autopilot.py list-adapters
 python scripts/research_autopilot.py init-artifacts --query "<research idea>"
 python scripts/research_autopilot.py validate-search-evidence
 python scripts/research_autopilot.py record-source --adapter github --target code_repositories --source-json '{"name":"repo","url":"https://github.com/org/repo"}'
-python scripts/research_autopilot.py build-main-tex --template "<path/to/template/main.tex>" --topic "<research topic>"
+python skills/research-design/scripts/validate_research_design_artifacts.py --root research_autopilot
+python scripts/research_autopilot.py validate-research-design
+python skills/research-manuscript/scripts/validate_manuscript_inputs.py --root research_autopilot
+python scripts/research_autopilot.py build-main-tex --design-file research_design.json --template "<path/to/template/main.tex>" --topic "<research topic>"
+python skills/research-manuscript/scripts/audit_main_tex.py --root research_autopilot
 python scripts/research_autopilot.py build-writing-packet --argument "<confirmed argument>"
 python scripts/research_autopilot.py validate-claims
 ```
@@ -61,6 +67,11 @@ Create or update these artifacts under `.autolab/runs/<run_id>/` when a run exis
 |---|---|
 | `research_brief.md` | Human-readable research direction, problem framing, candidate novelty, risks, and recommended route. |
 | `search_evidence.json` | Structured adapter evidence from papers, GitHub repos, datasets, baselines, PubMed, Zotero, HF, and web sources. |
+| `research_design.json` | Route-confirmed research design contract for `main.tex`: dataset roles, frontier landscape, domain difficulties, method rationale, mathematical modules, ablations, and expected hypotheses. |
+| `manuscript_blueprint.json` | Paper argument, section plan, and claim-to-experiment map used before LaTeX rendering. |
+| `citation_plan.json` | Bibliography inclusion/exclusion plan; only sources with stable locators enter references. |
+| `manuscript_source_map.json` | Trace map from manuscript sections, claims, formulas, datasets, and citations back to design/evidence ids. |
+| `manuscript_audit.json` | Post-render audit of abstract logic, section structure, Method formulas, TBD-only results, risks, and citations. |
 | `paper_requirements.json` | Method modules, losses, datasets, metrics, baselines, and implementation requirements from `main.tex`, a selected paper, or a scaffold. |
 | `experiment_matrix.json` | Main experiment, ablations, baselines, metrics, budgets, server target, and Matrix-AutoLab handoff status. |
 | `manuscript_claims.json` | Claim-to-evidence map. Only supported claims may enter final writing. |
@@ -85,11 +96,13 @@ Adapter roles:
 
 ```text
 research idea
--> initialize artifacts and Discovery Layer adapter runs
--> search papers/code/data/baselines with adapters
--> research_brief.md and search_evidence.json
+-> use research-discovery for Phase 1
+-> discovery_plan.json, search_evidence.json, research_landscape.json, research_brief.md
 -> user confirms route
--> main.tex or experiment-first manuscript scaffold
+-> use research-design for Phase 2
+-> research_design.json, manuscript_blueprint.json
+-> use research-manuscript for Phase 3
+-> main.tex, citation_plan.json, manuscript_source_map.json, manuscript_audit.json
 -> paper_requirements.json and experiment_matrix.json
 -> Matrix-AutoLab execution layer
 -> manuscript_claims.json
@@ -99,12 +112,18 @@ research idea
 
 ## Phase 1: Research Discovery
 
-1. Restate the user's research idea in one sentence.
-2. Run or coordinate the six Discovery Layer adapters that fit the domain.
-3. Prefer primary sources: papers, official repos, official datasets, benchmark pages, project docs, PubMed records, and the user's Zotero library.
-4. Record every source into `search_evidence.json`; use `record-source` when possible.
-5. Run `validate-search-evidence`. Use `--strict` before route confirmation when all relevant adapters have been attempted.
-6. Write `research_brief.md` in Chinese with English technical names where useful.
+Delegate this phase to `research-discovery`.
+
+The Phase 1 output must include:
+
+- `discovery_plan.json`
+- `search_evidence.json`
+- `research_landscape.json`
+- `research_brief.md`
+
+Use latest-12-month evidence for frontier hotspots, latest 3-5 year evidence for stable domain difficulties, and no hard year filter for public datasets or classical baselines. Prefer primary sources: papers, official repositories, official datasets, benchmark pages, project documentation, PubMed records, and the user's Zotero library.
+
+Run the `research-discovery` validator before route selection. If the discovery package lacks datasets, baselines, route candidates, or stable locators, continue discovery instead of asking the user to confirm a weak route.
 
 Search results are evidence for background and route selection. They are not proof of experimental claims.
 
@@ -120,9 +139,52 @@ Present 2-3 possible research routes. For each route include:
 - expected experiment budget
 - risk or blocker
 
-Recommend one route and ask the user to confirm before generating execution artifacts. If the user gives a preferred paper or `main.tex`, treat that as the selected route.
+Route candidates should come from `research_landscape.json`. Recommend one route and ask the user to confirm before generating execution artifacts. If the user gives a preferred paper or `main.tex`, treat that as the selected route.
 
-## Phase 3: Paper Intake Or Scaffold
+## Phase 2.5: Research Design
+
+Delegate this phase to `research-design`.
+
+The Phase 2 design output must include:
+
+- `research_design.json`
+- `manuscript_blueprint.json`
+
+Use `research-design` to convert the confirmed route into a strict design contract. It should not restart broad discovery. It should bind each method decision to evidence ids, dataset roles, domain difficulties, formulas, losses, ablations, baselines, metrics, and risks.
+
+Run the `research-design` validator before `build-main-tex`:
+
+```bash
+python skills/research-design/scripts/validate_research_design_artifacts.py --root research_autopilot
+python scripts/research_autopilot.py validate-research-design
+```
+
+If the validator reports an unconfirmed route, fewer than three modules, missing formulas, missing module evidence ids, or missing experiment alignment, revise `research_design.json` instead of generating `main.tex`.
+
+## Phase 3: Manuscript Rendering
+
+Delegate this phase to `research-manuscript` when `main.tex` does not exist or when a generated manuscript needs audit.
+
+The Phase 3 manuscript output must include:
+
+- `main.tex`
+- `citation_plan.json`
+- `manuscript_source_map.json`
+- `manuscript_audit.json`
+
+Use `research-manuscript` to render the validated design as an English paper draft. It should follow the manuscript template's writing logic only: formal Abstract progression, motivated Introduction, grouped Related Work, mathematical Problem Statement, formula-rich Method, realistic Study Design, TBD-only planned Results, and restrained Risks/Discussion. It must not copy the template's scientific content.
+
+Run the manuscript checks around `build-main-tex`:
+
+```bash
+python skills/research-manuscript/scripts/validate_manuscript_inputs.py --root research_autopilot
+python scripts/research_autopilot.py build-main-tex --design-file research_design.json --template "<template-main.tex>" --force
+python skills/research-manuscript/scripts/audit_main_tex.py --root research_autopilot
+```
+
+If the auditor reports internal abstract phrasing, missing `Why direct transfer is insufficient`, missing mathematical symbols, missing Method modules/formulas/losses/ablations, fake numeric results, or weak Study Design, revise `main.tex` before any execution handoff.
+
+## Phase 3.5: Paper Intake Or Scaffold
 
 If `main.tex` exists:
 
@@ -134,17 +196,30 @@ If `main.tex` exists:
 
 If `main.tex` does not exist:
 
-1. Produce an experiment-first manuscript scaffold rather than pretending a complete paper exists.
-2. If the user provides a `main.tex` template, use it only for LaTeX style, preamble, generic manuscript organization, and table-shell feel; do not copy the template paper's domain content, claims, datasets, methods, citations, or results.
-3. Prefer `build-main-tex` so the generated `main.tex` follows the template style while staying evidence-gated:
+1. Use `research-design` to produce `research_design.json` and `manuscript_blueprint.json` first. These files are the mandatory contract between the research synthesis step and `main.tex` generation.
+2. The design must include:
+   - `topic`, `confirmed_route`, and `title_candidate`
+   - `dataset_strategy` with `primary`, `validation`, `external_test`, and `supplementary`
+   - `frontier_landscape` from papers, journals, datasets, and code evidence
+   - `domain_difficulties` that explain task/data blockers and their experiment impact
+   - `method_rationale` with current method problems and the proposed design bridge
+   - `proposed_method` with at least three named modules, each with inputs, outputs, formulas, loss terms, and an ablation
+   - `experiment_alignment` mapping each module to datasets, baselines, metrics, and ablations
+   - `expected_results` as `hypothesis`, `expected`, `planned`, or `needs_evidence`; never write measured values before experiments
+3. Run `research-design` validation and `validate-research-design` before generating `main.tex`. If validation fails, fix `research_design.json`; do not generate a generic fallback.
+4. If the user provides a `main.tex` template, use it only for LaTeX style, preamble, generic manuscript organization, and table-shell feel; do not copy the template paper's domain content, claims, datasets, methods, citations, or results.
+5. Prefer `research-manuscript` plus `build-main-tex` so the generated `main.tex` follows the template style while staying evidence-gated:
 
 ```bash
-python scripts/research_autopilot.py build-main-tex --run-id <run_id> --template "<template-main.tex>" --topic "<confirmed research topic>" --force
+python skills/research-manuscript/scripts/validate_manuscript_inputs.py --root research_autopilot
+python scripts/research_autopilot.py validate-research-design --run-id <run_id>
+python scripts/research_autopilot.py build-main-tex --run-id <run_id> --design-file research_design.json --template "<template-main.tex>" --topic "<confirmed research topic>" --force
+python skills/research-manuscript/scripts/audit_main_tex.py --root research_autopilot
 ```
 
-4. Include a title candidate, abstract skeleton, method placeholders, experiment plan, result table shells, and required evidence list.
-5. Mark all unverified claims as `needs_evidence`.
-6. Do not call `matrix-autolab` until the user confirms the experiment plan and provides baseline code, dataset paths, or a paper source.
+6. The generated English manuscript must include a complete design logic: current method limitations, domain/data difficulties, frontier-driven rationale, grouped related work, a direct-transfer insufficiency section, at least three mathematical method modules, a total objective, ablations, dataset roles, planned results shells, expected hypotheses, risks, discussion, and bibliography.
+7. Mark all unverified claims as `needs_evidence`, `hypothesis`, `expected`, or `planned`.
+8. Do not call `matrix-autolab` until the user confirms the experiment plan and provides baseline code, dataset paths, or a paper source.
 
 The generated scaffold may cite papers from `search_evidence.json`, but only as verified literature anchors. It must not invent references or transform template content into project claims.
 

@@ -72,6 +72,7 @@ SOURCE_ADAPTER_IDS = ADAPTER_IDS | {"manual"}
 ARTIFACTS = [
     "research_brief.md",
     "search_evidence.json",
+    "research_design.json",
     "paper_requirements.json",
     "experiment_matrix.json",
     "manuscript_claims.json",
@@ -88,6 +89,8 @@ EVIDENCE_COLLECTIONS = [
     "zotero_items",
     "user_sources",
 ]
+
+DATASET_ROLES = ["primary", "validation", "external_test", "supplementary"]
 
 DEFAULT_MAIN_TEX_PREAMBLE = r"""\documentclass[11pt]{article}
 \usepackage[a4paper,margin=1in]{geometry}
@@ -176,6 +179,31 @@ def search_evidence_template(query: str) -> dict[str, Any]:
             "adapters_pending": sorted(ADAPTER_IDS),
         },
         "normalization_notes": [],
+    }
+
+
+def research_design_template(query: str) -> dict[str, Any]:
+    return {
+        "schema_version": RESEARCH_SCHEMA_VERSION,
+        "artifact": "research_design",
+        "topic": query,
+        "status": "needs_route_confirmation",
+        "confirmed_route": {},
+        "title_candidate": "",
+        "dataset_strategy": {role: [] for role in DATASET_ROLES},
+        "frontier_landscape": [],
+        "domain_difficulties": [],
+        "method_rationale": {
+            "existing_method_problems": [],
+            "design_direction": "",
+        },
+        "proposed_method": {
+            "name": "",
+            "overview": "",
+            "modules": [],
+            "total_objective": "",
+        },
+        "expected_results": [],
     }
 
 
@@ -426,7 +454,7 @@ def main_tex_scaffold(
         preamble,
         "",
         f"\\title{{{title_text}\\\\",
-        "\\large A manuscript-ready study design and evidence-gated experimental protocol}",
+        "\\large A reproducible framework and validation protocol}",
         "\\author{Anonymous Authors}",
         f"\\date{{Draft prepared on {utc_now()[:10]}}}",
         "",
@@ -434,7 +462,7 @@ def main_tex_scaffold(
         "\\maketitle",
         "",
         "\\begin{abstract}",
-        f"This scaffold describes a planned study on \\textbf{{{topic_text}}}. It follows the supplied main.tex file as a structural and formatting template only; no domain-specific claims, datasets, methods, or results from that template are reused. The manuscript is intentionally evidence-gated: background claims must be tied to verified literature sources, and experimental claims must remain placeholders until Matrix-AutoLab records metrics, reports, logs, and figures. The current draft therefore provides a study rationale, method placeholders, experiment protocol, baseline plan, ablation matrix, result-table shells, limitations, and reproducibility requirements rather than fabricated numerical results.",
+        f"We propose a reproducible research framework for \\textbf{{{topic_text}}}. The framework links verified literature, auditable datasets, baseline comparisons, and ablation analysis into a single manuscript structure. It defines the scientific motivation, mathematical problem setting, candidate method components, validation protocol, and reporting requirements needed to evaluate the proposed research question without relying on unsupported numerical claims.",
         "\\end{abstract}",
         "",
         f"\\noindent\\textbf{{Keywords:}} {topic_text}, machine learning, experimental protocol, evidence-gated writing, reproducibility",
@@ -573,6 +601,462 @@ def main_tex_scaffold(
     return "\n".join(lines) + "\n"
 
 
+def text_value(value: Any) -> str:
+    return str(value or "").strip()
+
+
+def list_value(value: Any) -> list[Any]:
+    return value if isinstance(value, list) else []
+
+
+def dict_value(value: Any) -> dict[str, Any]:
+    return value if isinstance(value, dict) else {}
+
+
+def evidence_id(item: dict[str, Any]) -> str:
+    for key in ("id", "source_id", "citation_key", "doi", "pmid"):
+        value = text_value(item.get(key))
+        if value:
+            return value
+    return ""
+
+
+def item_evidence_ids(item: Any) -> list[str]:
+    if not isinstance(item, dict):
+        return []
+    ids: list[str] = []
+    for key in ("evidence_ids", "evidence_chain", "source_ids", "citations"):
+        for value in list_value(item.get(key)):
+            text = text_value(value)
+            if text:
+                ids.append(text)
+    return ids
+
+
+def design_evidence_ids(value: Any) -> list[str]:
+    ids: list[str] = []
+    if isinstance(value, dict):
+        ids.extend(item_evidence_ids(value))
+        for child in value.values():
+            ids.extend(design_evidence_ids(child))
+    elif isinstance(value, list):
+        for child in value:
+            ids.extend(design_evidence_ids(child))
+    seen: set[str] = set()
+    deduped: list[str] = []
+    for item in ids:
+        if item not in seen:
+            seen.add(item)
+            deduped.append(item)
+    return deduped
+
+
+def source_locator(item: dict[str, Any]) -> str:
+    for key in ("url", "local_path", "doi", "pmid", "citation_key", "paper_or_repo_url"):
+        value = text_value(item.get(key))
+        if value:
+            return value
+    return ""
+
+
+def indexed_sources(evidence: dict[str, Any]) -> dict[str, dict[str, Any]]:
+    index: dict[str, dict[str, Any]] = {}
+    for collection in EVIDENCE_COLLECTIONS:
+        for item in list_value(evidence.get(collection)):
+            if not isinstance(item, dict) or not source_locator(item):
+                continue
+            key = evidence_id(item)
+            if key:
+                index[key] = item
+    return index
+
+
+def citation_for_ids(ids: list[str], source_index: dict[str, dict[str, Any]]) -> str:
+    keys = [citation_key(source_index[item], "ref", 0) for item in ids if item in source_index]
+    if not keys:
+        return ""
+    return " ".join(f"\\cite{{{key}}}" for key in keys[:4])
+
+
+def bibliography_from_design(design: dict[str, Any], evidence: dict[str, Any]) -> list[str]:
+    source_index = indexed_sources(evidence)
+    bibitems: list[str] = []
+    seen_keys: set[str] = set()
+    for source_id in design_evidence_ids(design):
+        item = source_index.get(source_id)
+        if item is None:
+            continue
+        key = citation_key(item, "ref", 0)
+        if key in seen_keys:
+            continue
+        seen_keys.add(key)
+        title = latex_escape(item.get("title") or item.get("name") or source_id)
+        venue = latex_escape(item.get("venue_or_source") or item.get("source") or item.get("publisher") or "")
+        year = latex_escape(item.get("year") or item.get("published_year") or "")
+        locator = source_locator(item)
+        locator_text = f" Available at: \\url{{{locator}}}." if locator else ""
+        details = ", ".join(part for part in [venue, year] if part)
+        suffix = f" {details}." if details else ""
+        bibitems.append(f"\\bibitem{{{key}}} {title}.{suffix}{locator_text}")
+    return bibitems
+
+
+def latex_sentence(value: Any, fallback: str = "") -> str:
+    return latex_escape(text_value(value) or fallback)
+
+
+def latex_item(label: str, body: str = "") -> str:
+    if body:
+        return f"    \\item \\textbf{{{latex_escape(label)}}}: {body}"
+    return f"    \\item {latex_escape(label)}"
+
+
+def latex_enumerate(items: list[str], empty: str) -> list[str]:
+    lines = ["\\begin{enumerate}[leftmargin=1.3cm]"]
+    if items:
+        lines.extend(f"    \\item {latex_escape(item)}" for item in items)
+    else:
+        lines.append(f"    \\item {latex_escape(empty)}")
+    lines.append("\\end{enumerate}")
+    return lines
+
+
+def latex_equation(formula: str) -> list[str]:
+    formula = text_value(formula)
+    if not formula:
+        return []
+    environment = "align" if "\\\\" in formula or "\n" in formula else "equation"
+    return [f"\\begin{{{environment}}}", formula, f"\\end{{{environment}}}"]
+
+
+def dataset_rows(strategy: dict[str, Any]) -> list[str]:
+    rows: list[str] = []
+    role_labels = {
+        "primary": "Primary",
+        "validation": "Validation",
+        "external_test": "External test",
+        "supplementary": "Supplementary",
+    }
+    for role in DATASET_ROLES:
+        datasets = list_value(strategy.get(role))
+        if not datasets:
+            rows.append(f"{role_labels[role]} & TBD & TBD & TBD \\\\")
+            continue
+        for dataset in datasets:
+            if not isinstance(dataset, dict):
+                continue
+            name = latex_escape(dataset.get("name") or dataset.get("id") or "TBD")
+            rationale = latex_escape(dataset.get("rationale") or dataset.get("role") or "TBD")
+            risk = latex_escape(dataset.get("risk") or dataset.get("blocker") or "TBD")
+            rows.append(f"{role_labels[role]} & {name} & {rationale} & {risk} \\\\")
+    return rows
+
+
+def method_modules(design: dict[str, Any]) -> list[dict[str, Any]]:
+    method = dict_value(design.get("proposed_method"))
+    return [item for item in list_value(method.get("modules")) if isinstance(item, dict)]
+
+
+def method_name(design: dict[str, Any]) -> str:
+    method = dict_value(design.get("proposed_method"))
+    return text_value(method.get("name")) or "Proposed Framework"
+
+
+def abstract_difficulty_text(difficulties: list[dict[str, Any]]) -> str:
+    labels = [
+        sentence_fragment(item.get("name") or item.get("impact"))
+        for item in difficulties
+        if isinstance(item, dict) and sentence_fragment(item.get("name") or item.get("impact"))
+    ]
+    if not labels:
+        return "task-specific data limitations and external-validity constraints"
+    if len(labels) == 1:
+        return labels[0]
+    return f"{labels[0]} and {labels[1]}"
+
+
+def abstract_dataset_roles(strategy: dict[str, Any]) -> str:
+    labels = {
+        "primary": "primary training",
+        "validation": "validation",
+        "external_test": "external testing",
+        "supplementary": "supplementary analysis",
+    }
+    roles = [labels[role] for role in DATASET_ROLES if list_value(strategy.get(role))]
+    if not roles:
+        return "training, validation, external testing, and supplementary analysis"
+    if len(roles) == 1:
+        return roles[0]
+    return ", ".join(roles[:-1]) + f", and {roles[-1]}"
+
+
+def sentence_fragment(value: Any, *, strip_leading_action: bool = False) -> str:
+    text = " ".join(text_value(value).strip().split()).rstrip(".;:")
+    if strip_leading_action:
+        lowered = text.lower()
+        for prefix in ("study ", "investigate ", "evaluate ", "develop "):
+            if lowered.startswith(prefix):
+                text = text[len(prefix) :].lstrip()
+                lowered = text.lower()
+                break
+    if len(text) > 1 and text[0].isupper() and text[1].islower():
+        text = text[0].lower() + text[1:]
+    return text
+
+
+def main_tex_scaffold(
+    *,
+    title: str,
+    topic: str,
+    preamble: str,
+    evidence: dict[str, Any],
+    design: dict[str, Any],
+) -> str:
+    source_index = indexed_sources(evidence)
+    title_text = latex_escape(title or design.get("title_candidate") or "Evidence-Gated Research Manuscript")
+    topic_text = latex_escape(topic or design.get("topic") or evidence.get("query") or "TBD research topic")
+    route = dict_value(design.get("confirmed_route"))
+    route_text = latex_escape(
+        sentence_fragment(route.get("description") or design.get("confirmed_route"), strip_leading_action=True)
+        or "the confirmed research route"
+    )
+    rationale = dict_value(design.get("method_rationale"))
+    method = dict_value(design.get("proposed_method"))
+    modules = method_modules(design)
+    method_label = latex_escape(method_name(design))
+    module_names = ", ".join(latex_escape(module.get("name") or f"Module {index + 1}") for index, module in enumerate(modules))
+    expected = [item for item in list_value(design.get("expected_results")) if isinstance(item, dict)]
+    problems = [text_value(item) for item in list_value(rationale.get("existing_method_problems")) if text_value(item)]
+    design_direction = latex_escape(
+        sentence_fragment(rationale.get("design_direction"), strip_leading_action=True)
+        or "the design direction remains evidence-gated until experiments are complete"
+    )
+    difficulties = [item for item in list_value(design.get("domain_difficulties")) if isinstance(item, dict)]
+    frontier = [item for item in list_value(design.get("frontier_landscape")) if isinstance(item, dict)]
+    dataset_strategy = dict_value(design.get("dataset_strategy"))
+    overview = latex_sentence(method.get("overview"), f"{method_label} contains evidence-gated modules: {module_names}.")
+    total_objective = text_value(method.get("total_objective"))
+    bibitems = bibliography_from_design(design, evidence)
+    abstract_modules = "; ".join(
+        latex_escape(module.get("name") or f"module {index + 1}") for index, module in enumerate(modules[:3])
+    )
+    if not abstract_modules:
+        abstract_modules = "mathematically specified method modules"
+    abstract_difficulties = latex_escape(abstract_difficulty_text(difficulties))
+    abstract_roles = latex_escape(abstract_dataset_roles(dataset_strategy))
+    route_clause = route_text.rstrip(".")
+
+    lines = [
+        preamble,
+        "",
+        f"\\title{{{title_text}\\\\",
+        "\\large A reproducible mathematical framework and validation protocol}",
+        "\\author{Anonymous Authors}",
+        f"\\date{{Draft prepared on {utc_now()[:10]}}}",
+        "",
+        "\\begin{document}",
+        "\\maketitle",
+        "",
+        "\\begin{abstract}",
+        f"Existing approaches for \\textbf{{{topic_text}}} can be sensitive to {abstract_difficulties}, limiting their reliability when training and deployment data differ. We propose \\textbf{{{method_label}}}, a framework that translates these data and task constraints into explicit mathematical modules. The framework combines {abstract_modules} within a unified objective for supervision modeling, representation learning, and validation. Evaluation is organized around {abstract_roles} dataset roles, strong baseline comparisons, module-level ablations, external validation, and calibration analysis. This formulation enables controlled assessment of robustness, generalization, and reliability without introducing unsupported performance values.",
+        "\\end{abstract}",
+        "",
+        f"\\noindent\\textbf{{Keywords:}} {topic_text}, medical artificial intelligence, robust learning, external validation, reproducibility",
+        "",
+        "\\section{Introduction}",
+        f"\\textbf{{{topic_text}}} remains challenging when models must handle {abstract_difficulties} across development and deployment settings. This study focuses on {route_clause}, and uses this constraint to define the model components, training objective, dataset roles, and ablation endpoints.",
+        "",
+        "The design is organized around three questions: what current approaches fail to handle, why the data setting makes those failures important, and how the proposed modules convert that gap into testable experiments.",
+        *latex_enumerate(problems, "Record current method limitations before completing the manuscript argument."),
+        "",
+        f"These limitations lead to the following design direction: {design_direction}.",
+        "",
+        "\\section{Related Work and Design Rationale}",
+        "\\subsection{Frontier landscape}",
+        "The following directions summarize the research frontier used to shape the design. Each direction links the method rationale to a concrete body of prior work or dataset evidence.",
+        "\\begin{enumerate}[leftmargin=1.3cm]",
+    ]
+    for item in frontier:
+        cite = citation_for_ids(item_evidence_ids(item), source_index)
+        body = " ".join(part for part in [latex_escape(text_value(item.get("insight"))), cite] if part)
+        lines.append(latex_item(text_value(item.get("direction")) or "Frontier direction", body))
+    if not frontier:
+        lines.append("    \\item Record frontier papers and journal directions before generating this section.")
+    lines.extend(
+        [
+            "\\end{enumerate}",
+            "",
+            "\\subsection{Data and task difficulties}",
+            "The main domain difficulties are treated as design constraints rather than background decoration. Each difficulty motivates at least one experimental endpoint or ablation.",
+            "\\begin{enumerate}[leftmargin=1.3cm]",
+        ]
+    )
+    for item in difficulties:
+        cite = citation_for_ids(item_evidence_ids(item), source_index)
+        body = " ".join(part for part in [latex_escape(text_value(item.get("impact"))), cite] if part)
+        lines.append(latex_item(text_value(item.get("name")) or "Domain difficulty", body))
+    if not difficulties:
+        lines.append("    \\item Record data and task difficulties before completing this subsection.")
+    lines.extend(
+        [
+            "\\end{enumerate}",
+            "",
+            "\\subsection{Why direct transfer is insufficient}",
+            f"Direct reuse of existing architectures is insufficient because the target setting requires a model that can {design_direction}. The method therefore turns the literature gap into explicit modules, each with a mathematical interface, loss term, and ablation.",
+            "",
+            "\\section{Problem Statement}",
+            "Let the training data be",
+            "\\begin{equation}",
+            "\\mathcal{D}=\\left\\{\\left(\\mathcal{X}_i, M_i, y_i, r_i\\right)\\right\\}_{i=1}^{N},",
+            "\\end{equation}",
+            "where $\\mathcal{X}_i$ denotes an image, clip, or paired-view sample, $M_i$ denotes pixel-level supervision when available, $y_i$ denotes optional diagnostic or outcome labels, and $r_i$ denotes optional clinical descriptors or metadata. The target is to learn a model that produces a structured prediction $\\hat{M}_i$ plus intermediate representations that can be audited through ablations and downstream measurements.",
+            "",
+            "\\section{Method}",
+            "\\subsection{Overview}",
+            overview,
+            "",
+        ]
+    )
+    for index, module in enumerate(modules, start=1):
+        name = latex_escape(module.get("name") or f"Module {index}")
+        purpose = latex_sentence(module.get("purpose") or module.get("rationale"), "This module requires a purpose statement.")
+        inputs = ", ".join(latex_escape(item) for item in list_value(module.get("inputs")) if text_value(item)) or "TBD"
+        outputs = ", ".join(latex_escape(item) for item in list_value(module.get("outputs")) if text_value(item)) or "TBD"
+        loss_terms = ", ".join(f"${term}$" for term in list_value(module.get("loss_terms")) if text_value(term)) or "\\texttt{needs\\_evidence}"
+        lines.extend(
+            [
+                f"\\subsection{{{name}}}",
+                purpose,
+                "",
+                f"\\noindent\\textbf{{Inputs:}} {inputs}. \\textbf{{Outputs:}} {outputs}. \\textbf{{Loss terms:}} {loss_terms}.",
+                "",
+            ]
+        )
+        for formula in [text_value(formula) for formula in list_value(module.get("formulas")) if text_value(formula)]:
+            lines.extend(latex_equation(formula))
+            lines.append("")
+    lines.extend(
+        [
+            "\\subsection{Overall objective}",
+            "The full training objective combines the module-specific terms. The weights are validation-selected hyperparameters rather than claimed optimal values.",
+            *latex_equation(total_objective or "\\mathcal{L}_{\\text{total}}=\\sum_m \\lambda_m \\mathcal{L}_m"),
+            "",
+            "\\section{Study Design and Experimental Protocol}",
+            "\\subsection{Study design}",
+            "The study is structured as a multi-dataset retrospective benchmark with explicit validation, external testing, and supplementary analyses. Patient-level or case-level split control should be used whenever identifiers are available.",
+            "",
+            "\\subsection{Candidate datasets and roles}",
+            "\\begin{table}[htbp]",
+            "\\centering",
+            "\\caption{Datasets and their role in the experimental protocol.}",
+            "\\label{tab:datasets}",
+            "\\begin{tabular}{p{2.4cm}p{3.2cm}p{5.2cm}p{4.2cm}}",
+            "\\toprule",
+            "Role & Dataset & Rationale & Risk or access note \\\\",
+            "\\midrule",
+            *dataset_rows(dataset_strategy),
+            "\\bottomrule",
+            "\\end{tabular}",
+            "\\end{table}",
+            "",
+            "\\subsection{Baselines and endpoints}",
+            "Baselines should include strong generic models, domain-specific methods identified during Discovery, and internal ablations that isolate each proposed module. Primary endpoints should match the task, while secondary endpoints should directly test the data difficulties identified above.",
+            "",
+            "\\subsection{Ablation plan}",
+            "\\begin{enumerate}[leftmargin=1.3cm]",
+        ]
+    )
+    for module in modules:
+        ablation = text_value(module.get("ablation")) or f"remove {text_value(module.get('name')) or 'module'}"
+        lines.append(f"    \\item {latex_escape(ablation)}.")
+    lines.extend(
+        [
+            "\\end{enumerate}",
+            "",
+            "\\section{Results Reporting Plan}",
+            "The following tables define the reporting structure. Replace \\texttt{TBD} only with measured values after training and evaluation.",
+            "",
+            "\\begin{table}[htbp]",
+            "\\centering",
+            "\\caption{Main comparison table.}",
+            "\\label{tab:main-results}",
+            "\\begin{tabular}{p{3.4cm}p{2.4cm}p{1.6cm}p{1.6cm}p{1.8cm}p{2.2cm}}",
+            "\\toprule",
+            "Method & Dataset & Primary metric & Secondary metric & Robustness & Notes \\\\",
+            "\\midrule",
+            "Best pixel baseline & Primary / external & TBD & TBD & TBD & TBD \\\\",
+            f"\\textbf{{{method_label}}} & Primary / external & TBD & TBD & TBD & \\texttt{{needs\\_evidence}} \\\\",
+            "\\bottomrule",
+            "\\end{tabular}",
+            "\\end{table}",
+            "",
+            "\\begin{table}[htbp]",
+            "\\centering",
+            "\\caption{Ablation table.}",
+            "\\label{tab:ablations}",
+            "\\begin{tabular}{p{4.6cm}p{3.2cm}p{2.2cm}p{3.2cm}}",
+            "\\toprule",
+            "Variant & Removed or changed component & Metric delta & Evidence path \\\\",
+            "\\midrule",
+            f"\\textbf{{{method_label}}} & -- & TBD & TBD \\\\",
+        ]
+    )
+    for module in modules:
+        ablation = latex_escape(module.get("ablation") or f"without {module.get('name')}")
+        lines.append(f"{ablation} & {latex_escape(module.get('name') or 'module')} & TBD & TBD \\\\")
+    lines.extend(
+        [
+            "\\bottomrule",
+            "\\end{tabular}",
+            "\\end{table}",
+            "",
+            "\\section{Expected Contributions and Publication Value}",
+            "If the experimental hypotheses are validated, the study is expected to contribute the following evidence-gated advances:",
+            "\\begin{enumerate}[leftmargin=1.3cm]",
+        ]
+    )
+    for item in expected:
+        status = latex_escape(item.get("status") or "hypothesis")
+        claim = latex_escape(item.get("claim") or item.get("description") or "Expected result")
+        evidence_needed = latex_escape(item.get("evidence_needed") or "measured experimental evidence")
+        lines.append(f"    \\item \\textbf{{{status}}}: {claim} Evidence needed: {evidence_needed}.")
+    if not expected:
+        lines.append("    \\item \\texttt{needs\\_evidence}: Record expected contributions before final writing.")
+    lines.extend(
+        [
+            "\\end{enumerate}",
+            "",
+            "\\section{Potential Failure Modes and Risk Mitigation}",
+            "The following risks should be treated as prespecified checks rather than post hoc excuses:",
+            "\\begin{enumerate}[leftmargin=1.3cm]",
+        ]
+    )
+    for item in difficulties:
+        name = latex_escape(item.get("name") or "Risk")
+        impact = latex_escape(item.get("impact") or item.get("risk") or "requires explicit validation")
+        lines.append(f"    \\item \\textbf{{{name}}}: {impact}.")
+    if not difficulties:
+        lines.append("    \\item Record domain-specific risks before final submission.")
+    lines.extend(
+        [
+            "\\end{enumerate}",
+            "",
+            "\\section{Discussion}",
+            f"This study asks whether {method_label} can address the confirmed gap in {topic_text} through mathematically specified modules rather than through a generic architecture claim. The final Discussion should interpret measured evidence and explicitly separate supported results from hypotheses that remain unresolved.",
+            "",
+            "\\section{Conclusion}",
+            f"This manuscript presents {method_label} as a mathematically specified, dataset-aware framework connected to explicit ablations and external validation. Final performance claims require completed experiments and validated external evidence.",
+            "",
+        ]
+    )
+    if bibitems:
+        lines.extend(["\\begin{thebibliography}{99}", *bibitems, "\\end{thebibliography}", ""])
+    else:
+        lines.extend(["% Bibliography omitted because no referenced source in search_evidence.json has a stable locator.", ""])
+    lines.append("\\end{document}")
+    return "\n".join(lines) + "\n"
+
+
 def cmd_list_adapters(_args: argparse.Namespace) -> int:
     print(json.dumps({"schema_version": RESEARCH_SCHEMA_VERSION, "adapters": DISCOVERY_ADAPTERS}, indent=2, ensure_ascii=False))
     return 0
@@ -585,6 +1069,8 @@ def cmd_init_artifacts(args: argparse.Namespace) -> int:
         created.append("research_brief.md")
     if write_json_if_needed(root / "search_evidence.json", search_evidence_template(args.query), args.force):
         created.append("search_evidence.json")
+    if write_json_if_needed(root / "research_design.json", research_design_template(args.query), args.force):
+        created.append("research_design.json")
     if write_json_if_needed(root / "paper_requirements.json", paper_requirements_template(), args.force):
         created.append("paper_requirements.json")
     if write_json_if_needed(root / "experiment_matrix.json", experiment_matrix_template(), args.force):
@@ -618,6 +1104,121 @@ def load_search_evidence(path: Path) -> dict[str, Any]:
     if not isinstance(payload, dict):
         raise ValueError(f"search_evidence must be a JSON object: {path}")
     return payload
+
+
+def research_design_path(root: Path, design_file: str = "") -> Path:
+    path = Path(design_file) if design_file else root / "research_design.json"
+    return path if path.is_absolute() else root / path
+
+
+def load_research_design(root: Path, design_file: str = "") -> dict[str, Any]:
+    path = research_design_path(root, design_file)
+    payload = read_json(path, None)
+    if payload is None:
+        raise FileNotFoundError(f"research_design.json not found: {path}")
+    if not isinstance(payload, dict):
+        raise ValueError(f"research_design.json must be a JSON object: {path}")
+    return payload
+
+
+def validate_research_design_payload(payload: dict[str, Any]) -> tuple[list[str], list[str]]:
+    errors: list[str] = []
+    warnings: list[str] = []
+
+    for field in ("topic", "confirmed_route", "title_candidate", "dataset_strategy", "frontier_landscape", "domain_difficulties", "method_rationale", "proposed_method", "expected_results"):
+        if field not in payload:
+            errors.append(f"missing field: {field}")
+
+    if not text_value(payload.get("topic")):
+        errors.append("topic is required")
+    if not text_value(payload.get("title_candidate")):
+        errors.append("title_candidate is required")
+
+    route = payload.get("confirmed_route")
+    if isinstance(route, dict):
+        if not (text_value(route.get("description")) or text_value(route.get("route_id"))):
+            errors.append("confirmed_route must include route_id or description")
+        if route.get("user_confirmed") is not True:
+            errors.append("confirmed_route.user_confirmed must be true")
+    elif not text_value(route):
+        errors.append("confirmed_route is required")
+    else:
+        errors.append("confirmed_route must be an object with user_confirmed=true")
+
+    dataset_strategy = dict_value(payload.get("dataset_strategy"))
+    missing_roles = [role for role in DATASET_ROLES if role not in dataset_strategy]
+    if missing_roles:
+        errors.append(f"dataset_strategy missing roles: {missing_roles}")
+    for role in DATASET_ROLES:
+        if role in dataset_strategy and not isinstance(dataset_strategy.get(role), list):
+            errors.append(f"dataset_strategy.{role} must be a list")
+    if not list_value(dataset_strategy.get("primary")):
+        errors.append("dataset_strategy.primary requires at least one dataset")
+    if not list_value(dataset_strategy.get("external_test")):
+        errors.append("dataset_strategy.external_test requires at least one dataset")
+
+    if not list_value(payload.get("frontier_landscape")):
+        errors.append("frontier_landscape requires at least one frontier direction")
+    if not list_value(payload.get("domain_difficulties")):
+        errors.append("domain_difficulties requires at least one difficulty")
+
+    rationale = dict_value(payload.get("method_rationale"))
+    if not list_value(rationale.get("existing_method_problems")):
+        errors.append("method_rationale.existing_method_problems requires at least one problem")
+    if not text_value(rationale.get("design_direction")):
+        errors.append("method_rationale.design_direction is required")
+
+    method = dict_value(payload.get("proposed_method"))
+    if not text_value(method.get("name")):
+        errors.append("proposed_method.name is required")
+    modules = [item for item in list_value(method.get("modules")) if isinstance(item, dict)]
+    if len(modules) < 3:
+        errors.append("proposed_method requires at least 3 method modules")
+    for index, module in enumerate(modules):
+        label = text_value(module.get("name")) or f"module[{index}]"
+        if not text_value(module.get("name")):
+            errors.append(f"{label} missing name")
+        if not text_value(module.get("purpose") or module.get("rationale")):
+            errors.append(f"{label} missing purpose")
+        if not list_value(module.get("formulas")):
+            errors.append(f"{label} missing formulas")
+        if not list_value(module.get("inputs")):
+            errors.append(f"{label} missing inputs")
+        if not list_value(module.get("outputs")):
+            errors.append(f"{label} missing outputs")
+        if not list_value(module.get("loss_terms")):
+            errors.append(f"{label} missing loss_terms")
+        if not text_value(module.get("ablation")):
+            errors.append(f"{label} missing ablation")
+    if not text_value(method.get("total_objective")):
+        errors.append("proposed_method.total_objective is required")
+    elif "\\mathcal{L}" not in text_value(method.get("total_objective")):
+        warnings.append("proposed_method.total_objective does not look like a LaTeX loss formula")
+
+    expected = list_value(payload.get("expected_results"))
+    if not expected:
+        errors.append("expected_results requires at least one planned hypothesis")
+    allowed_status = {"hypothesis", "expected", "planned", "needs_evidence"}
+    for index, item in enumerate(expected):
+        if not isinstance(item, dict):
+            errors.append(f"expected_results[{index}] must be an object")
+            continue
+        status = text_value(item.get("status")) or "hypothesis"
+        if status not in allowed_status:
+            errors.append(f"expected_results[{index}] status must be one of {sorted(allowed_status)}")
+        if any(key in item for key in ("value", "measured_value", "numeric_result")):
+            errors.append(f"expected_results[{index}] must not include measured result fields")
+    return errors, warnings
+
+
+def cmd_validate_research_design(args: argparse.Namespace) -> int:
+    root = artifact_root(args.run_id)
+    path = research_design_path(root, args.design_file)
+    design = load_research_design(root, args.design_file)
+    errors, warnings = validate_research_design_payload(design)
+    result = {"ok": not errors, "path": str(path), "errors": errors, "warnings": warnings}
+    print(json.dumps(result, indent=2, ensure_ascii=False))
+    return 0 if result["ok"] else 3
 
 
 def update_coverage(payload: dict[str, Any]) -> None:
@@ -878,24 +1479,54 @@ def cmd_build_main_tex(args: argparse.Namespace) -> int:
     if output_path.exists() and not args.force:
         raise ValueError(f"Output already exists: {output_path}. Re-run with --force to replace it.")
 
+    design = load_research_design(root, args.design_file)
+    errors, warnings = validate_research_design_payload(design)
+    if errors:
+        result = {
+            "ok": False,
+            "path": str(research_design_path(root, args.design_file)),
+            "errors": errors,
+            "warnings": warnings,
+        }
+        print(json.dumps(result, indent=2, ensure_ascii=False), file=sys.stderr)
+        return 3
+
     evidence = collect_evidence_sources(root, args.evidence_file)
     preamble = clean_tex_template_preamble(args.template)
-    topic = args.topic or evidence.get("query") or ""
+    topic = args.topic or design.get("topic") or evidence.get("query") or ""
     if args.title:
         title = args.title
+    elif design.get("title_candidate"):
+        title = str(design["title_candidate"])
     elif topic:
-        title = f"{topic}: Evidence-Gated Study Design"
+        title = f"{topic}: A Reproducible Research Framework"
     else:
-        title = "Evidence-Gated Study Design"
-    scaffold = main_tex_scaffold(title=title, topic=topic, preamble=preamble, evidence=evidence)
+        title = "Evidence-Aware Research Framework"
+    scaffold = main_tex_scaffold(title=title, topic=topic, preamble=preamble, evidence=evidence, design=design)
     write_text_if_needed(output_path, scaffold, True)
     result = {
         "ok": True,
         "path": str(output_path),
+        "design_file": str(research_design_path(root, args.design_file)),
         "template_used": args.template,
         "template_content_reused": False,
-        "sections": GENERIC_TEMPLATE_SECTIONS,
+        "sections": [
+            "Abstract",
+            "Introduction",
+            "Related Work and Design Rationale",
+            "Problem Statement",
+            "Method",
+            "Study Design and Experimental Protocol",
+            "Results Reporting Plan",
+            "Expected Contributions and Publication Value",
+            "Potential Failure Modes and Risk Mitigation",
+            "Discussion",
+            "Conclusion",
+            "Bibliography",
+        ],
+        "method_modules": len(method_modules(design)),
         "paper_sources_used": len(evidence.get("papers", []) or []),
+        "warnings": warnings,
     }
     print(json.dumps(result, indent=2, ensure_ascii=False))
     return 0
@@ -930,6 +1561,11 @@ def build_parser() -> argparse.ArgumentParser:
     validate_search.add_argument("--strict", action="store_true")
     validate_search.set_defaults(func=cmd_validate_search)
 
+    validate_design = sub.add_parser("validate-research-design")
+    validate_design.add_argument("--run-id", default="")
+    validate_design.add_argument("--design-file", default="")
+    validate_design.set_defaults(func=cmd_validate_research_design)
+
     validate_claims_cmd = sub.add_parser("validate-claims")
     validate_claims_cmd.add_argument("--run-id", default="")
     validate_claims_cmd.set_defaults(func=cmd_validate_claims)
@@ -943,6 +1579,7 @@ def build_parser() -> argparse.ArgumentParser:
     main_tex.add_argument("--run-id", default="")
     main_tex.add_argument("--template", default="", help="Optional main.tex style template; only structure/preamble are used")
     main_tex.add_argument("--evidence-file", default="", help="Optional search_evidence.json path")
+    main_tex.add_argument("--design-file", default="", help="Optional research_design.json path")
     main_tex.add_argument("--output", default="", help="Output path. Defaults to artifact root/main.tex")
     main_tex.add_argument("--title", default="")
     main_tex.add_argument("--topic", default="")
