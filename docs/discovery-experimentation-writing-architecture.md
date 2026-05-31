@@ -1,4 +1,4 @@
-# Discovery, Experimentation, and Writing Architecture
+# Codex-Native Research Kernel Architecture
 
 ## Purpose
 
@@ -9,6 +9,8 @@ DreamweaverAI AutoLab should evolve from a collection of paper reproduction and 
 - Writing: turn verified evidence into claims, figures, citations, manuscript sections, revision material, data statements, and presentation assets.
 
 AutoResearchClaw is a reference for stage discipline, checkpointing, gate handling, and evidence-based paper generation. It is not the architecture root and should not be copied as a 23-stage pipeline.
+
+The intended product form is a Codex plugin shell wrapped around a local research agent kernel and a durable research memory layer. The plugin is the user-facing entry point; the kernel owns decisions, recovery, verification, and human-in-the-loop policy; the knowledge layer accumulates evidence, failures, and lessons across runs.
 
 ## Design Decision
 
@@ -29,6 +31,19 @@ dreamweaverai-autolab
 │  ├─ scripts/autolab_contract.py
 │  ├─ scripts/autolab_event.py
 │  └─ scripts/research_autopilot.py
+├─ Research Kernel
+│  ├─ Debate Engine
+│  ├─ Recovery and Decision Loop
+│  ├─ Verification Ledger
+│  ├─ HITL Policy Engine
+│  └─ Evolution Memory
+├─ Knowledge Layer
+│  ├─ event log
+│  ├─ artifact registry
+│  ├─ evidence graph
+│  ├─ claim graph
+│  ├─ failure graph
+│  └─ lesson graph
 ├─ Discovery Lane
 ├─ Experimentation Lane
 └─ Writing Lane
@@ -41,6 +56,8 @@ dreamweaverai-autolab
 - Do not move all legacy outputs into `.autolab/` automatically.
 - Do not let chat history become the source of truth for phase state.
 - Do not allow unsupported claims into final manuscript prose.
+- Do not treat dashboard screens as the architecture source of truth.
+- Do not let self-evolution edit skills, prompts, or validators without evidence and review gates.
 
 ## Core Concepts
 
@@ -65,6 +82,156 @@ Every major decision must appear in a machine-readable artifact before it appear
 ### Evidence Before Claims
 
 Discovery evidence supports route selection and background claims. Experiment evidence supports results claims. Writing must distinguish `supported`, `partial`, and `needs_evidence`.
+
+### Kernel Before Dashboard
+
+The first-class product is the research kernel and its durable memory, not the dashboard. A dashboard can read the kernel state later, but it should not define phase semantics, artifact contracts, or gate behavior.
+
+## Research Kernel
+
+The research kernel is the reusable agent logic behind the Codex plugin. It is not a standalone autonomous agent in the first phase. Codex remains the orchestrator, and the kernel provides the protocols, artifacts, validators, and decision rules that make research runs auditable and resumable.
+
+### Debate Engine
+
+The Debate Engine runs structured multi-perspective reviews for high-leverage reasoning points:
+
+- Discovery: generate and challenge hypotheses, route options, novelty claims, dataset choices, and baseline requirements.
+- Experimentation: review implementation plans, failure causes, metric interpretation, ablation meaning, and baseline fairness.
+- Writing: challenge manuscript claims, figure interpretation, limitation wording, and citation use.
+
+Each debate should produce a structured artifact, not just prose:
+
+```text
+debates/
+├─ <phase>_<topic>_debate.json
+└─ <phase>_<topic>_summary.md
+```
+
+The JSON record should include roles, claims, evidence references, objections, resolution, confidence, and the final decision. Debate outputs can inform decisions, but they do not override validators or user gates.
+
+### Recovery And Decision Loop
+
+The Recovery and Decision Loop turns execution failure into a controlled decision instead of a dead end. It should support these decisions:
+
+- `PROCEED`: evidence is sufficient; continue.
+- `REFINE`: keep the route, adjust parameters, implementation, data handling, or analysis.
+- `PIVOT`: change hypothesis, method, dataset, or baseline strategy.
+- `RETRY`: rerun after infrastructure or transient failure.
+- `STOP_WEAK`: stop because the route is not worth continuing.
+- `ESCALATE`: require user or expert input before continuing.
+
+Every recovery decision must write to `decisions.jsonl` and, when relevant, create a `Failure` and `Lesson` node in the knowledge layer.
+
+### Verification Ledger
+
+The Verification Ledger prevents metric fabrication, data leakage, unsupported claims, and citation hallucination.
+
+It should track:
+
+- source evidence and stable locators
+- dataset identity and preprocessing hashes
+- experiment commands and environment fingerprints
+- metrics and the files that produced them
+- claim-to-evidence links
+- citation inclusion and exclusion reasons
+- figure provenance
+
+Writing can only use measured claims that point back to verified experiment outputs. Background citations can support context, but they cannot support experimental result claims.
+
+### HITL Policy Engine
+
+The HITL Policy Engine controls how autonomous a run is allowed to be. The architecture supports seven intervention modes:
+
+| Mode | Meaning | Typical Use |
+|---|---|---|
+| `full_auto` | Run without stopping unless a hard validator fails | low-risk exploration |
+| `gate_only` | Stop only at major gates | routine research workflow |
+| `checkpoint` | Stop after every coarse phase | medium-risk projects |
+| `co_pilot` | Collaborate on key decisions and tradeoffs | research design and interpretation |
+| `step_by_step` | Require confirmation for every meaningful step | high-risk or new workflows |
+| `audit_only` | Run first, then require full audit before writing/export | batch exploration |
+| `manual_lock` | High-risk steps require explicit unlock | expensive experiments, clinical/biomedical claims, external submission |
+
+The selected mode must be stored in `run.json` and reflected in `gate_status.json`.
+
+### Evolution Memory
+
+Evolution Memory converts repeated failures and corrections into future risk defenses. It is evidence-gated, not automatic self-modification.
+
+The loop is:
+
+1. A run produces a failure, warning, rejection, or manual correction.
+2. The kernel records a `Failure` and a candidate `Lesson`.
+3. Cross-run aggregation detects repeated lessons.
+4. The system proposes one of: validator patch, skill patch, prompt rule, checklist item, experiment template, or dashboard read model.
+5. Codex prepares the patch.
+6. Tests and user review gate the change.
+7. Accepted improvements are recorded as `Lesson -> improves -> Skill/Prompt/Validator`.
+
+This keeps the system self-improving without letting it silently rewrite its own behavior.
+
+## Knowledge Layer
+
+The knowledge layer is the long-term research memory. The first version should be local-first and simple:
+
+```text
+.autolab/
+├─ memory/
+│  ├─ knowledge.db
+│  ├─ evidence/
+│  ├─ lessons/
+│  └─ indexes/
+└─ runs/<run_id>/
+   ├─ evidence.jsonl
+   ├─ decisions.jsonl
+   └─ artifact_manifest.json
+```
+
+`knowledge.db` can start as SQLite. A graph database can be added later if query volume or relationship complexity requires it.
+
+### Graph Nodes
+
+Initial node types:
+
+- `Run`
+- `Paper`
+- `Dataset`
+- `Method`
+- `Baseline`
+- `CodeRepo`
+- `Experiment`
+- `Metric`
+- `Claim`
+- `Citation`
+- `Figure`
+- `Decision`
+- `Failure`
+- `Lesson`
+- `Skill`
+- `Prompt`
+- `Validator`
+
+### Graph Relationships
+
+Initial relationship types:
+
+- `Paper -> proposes -> Method`
+- `Paper -> cites -> Paper`
+- `CodeRepo -> implements -> Method`
+- `Dataset -> evaluates -> Method`
+- `Experiment -> uses -> Dataset`
+- `Experiment -> produces -> Metric`
+- `Metric -> supports -> Claim`
+- `Citation -> supports_background_for -> Claim`
+- `Claim -> appears_in -> manuscript section`
+- `Figure -> visualizes -> Metric/Claim`
+- `Decision -> changes -> Route/Experiment/Writing`
+- `Failure -> caused_by -> Decision/Code/Data/Environment`
+- `Lesson -> prevents -> Failure`
+- `Lesson -> improves -> Skill/Prompt/Validator`
+- `Run -> generated -> Artifact`
+
+The graph should store references to artifacts, not duplicate large files.
 
 ## Run State Layout
 
@@ -268,13 +435,12 @@ It should not mutate `.autolab/` records until the protocol layer is stable.
 
 Borrow these ideas:
 
-- stage summaries
-- checkpoints and resume
-- gate rollback targets
-- result verification before writing
-- citation and claim checks
-- pipeline summary artifacts
-- human-in-the-loop pause points
+- structured agent debate for hypothesis generation and result interpretation
+- self-healing execution with `PROCEED`, `REFINE`, `PIVOT`, `RETRY`, `STOP_WEAK`, and `ESCALATE` decisions
+- verifiable result reporting that blocks metric fabrication and citation hallucination
+- human-in-the-loop modes from full autonomy to step-by-step supervision
+- cross-run evolution that turns historical failures into future risk defenses
+- checkpoints, resume, gate rollback targets, and pipeline summary artifacts
 
 Do not borrow these directly:
 
@@ -292,6 +458,10 @@ The first architecture milestone should deliver:
 - `artifact_manifest.json`
 - `evidence.jsonl`
 - `decisions.jsonl`
+- a Research Kernel read model with Debate Engine, Recovery and Decision Loop, Verification Ledger, HITL Policy Engine, and Evolution Memory entries
+- seven HITL modes stored in `run.json` and reflected in `gate_status.json`
+- a local-first knowledge layer under `.autolab/memory/`
+- initial graph schema for papers, datasets, methods, baselines, experiments, metrics, claims, failures, lessons, skills, prompts, and validators
 - nine coarse phases in the gate plan
 - discovery validators wired to existing `research_autopilot.py`
 - experiment contract reuse from `autolab_contract.py`
@@ -307,7 +477,9 @@ The first architecture milestone should deliver:
 4. Teach `matrix-research-autopilot` to create lane folders and manifests.
 5. Teach `matrix-autolab` to read the same run state before executing.
 6. Teach writing skills to consume `writing_packet.md` and `manuscript_claims.json` from the lane layout.
-7. Update the dashboard to read the normalized run model.
+7. Add kernel metadata to run records: debate records, recovery decisions, verification ledger status, HITL policy, and lesson candidates.
+8. Add `.autolab/memory/knowledge.db` or an equivalent local graph store after event and artifact records are stable.
+9. Update the dashboard only as a read-only viewer of the normalized run and memory model.
 
 ## Implementation Defaults
 
@@ -316,5 +488,7 @@ The first architecture milestone should deliver:
 - `artifact_manifest.json` should be rewritten as the current normalized state changes.
 - `evidence.jsonl` and `decisions.jsonl` should be append-only audit logs.
 - Final packet readiness should be owned by the protocol layer; the dashboard only displays the result.
+- Self-evolution proposals should be recorded as candidate lessons first; accepted skill, prompt, or validator changes require tests and review.
+- The first knowledge graph implementation should be SQLite-backed unless query complexity proves it needs a dedicated graph database.
 
 The recommended default is conservative: reference legacy outputs from `artifact_manifest.json` first, then migrate physical paths only when a phase touches the artifact.
