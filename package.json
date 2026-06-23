@@ -25,6 +25,7 @@
     "matrix-autolab": "./bin/matrix-autolab.js"
   },
   "files": [
+    ".claude-plugin/",
     ".codex-plugin/",
     ".app.json",
     "apps/dashboard/app/",

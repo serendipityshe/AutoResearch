@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
+  "name": "dreamweaverai-autolab",
+  "displayName": "DreamweaverAI AutoLab",
+  "version": "0.1.0",
+  "description": "Unified plugin packaging for adapter-based idea-to-paper research autopilot, PaperBanana, AutoLab, AutoBaseline, built-in Nature Skills writing, local experiment recording, and the Matrix-AutoLab dashboard.",
+  "author": {
+    "name": "Matrix-AutoLab Contributors",
+    "url": "https://github.com/serendipityshe/dreamweaverai-autolab"
+  },
+  "homepage": "https://github.com/serendipityshe/dreamweaverai-autolab",
+  "repository": "https://github.com/serendipityshe/dreamweaverai-autolab",
+  "license": "MIT-0",
+  "keywords": [
+    "autolab",
+    "idea-to-paper",
+    "paper-reproduction",
+    "research-autopilot",
+    "deep-learning",
+    "experiments",
+    "baseline-comparison"
+  ],
+  "skills": "./skills/"
+}

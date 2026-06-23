@@ -1,0 +1,25 @@
+{
+  "name": "dreamweaverai-autolab",
+  "owner": {
+    "name": "Matrix-AutoLab Contributors"
+  },
+  "description": "Idea-to-paper and paper-to-experiment research autopilot with literature/code/data/baseline discovery, AutoLab experiments, Nature-style writing, figures, citations, and a local dashboard.",
+  "plugins": [
+    {
+      "name": "dreamweaverai-autolab",
+      "source": "./",
+      "displayName": "DreamweaverAI AutoLab",
+      "description": "Unified plugin packaging for adapter-based idea-to-paper research autopilot, PaperBanana, AutoLab, AutoBaseline, built-in Nature Skills writing, local experiment recording, and the Matrix-AutoLab dashboard.",
+      "category": "research",
+      "keywords": [
+        "autolab",
+        "idea-to-paper",
+        "paper-reproduction",
+        "research-autopilot",
+        "deep-learning",
+        "experiments",
+        "baseline-comparison"
+      ]
+    }
+  ]
+}
