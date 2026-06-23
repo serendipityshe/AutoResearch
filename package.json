@@ -5,12 +5,12 @@
   "license": "MIT-0",
   "author": {
     "name": "Matrix-AutoLab Contributors",
-    "url": "https://github.com/serendipityshe/dreamweaverai-autolab"
+    "url": "https://github.com/serendipityshe/AutoResearch"
   },
-  "homepage": "https://github.com/serendipityshe/dreamweaverai-autolab",
+  "homepage": "https://github.com/serendipityshe/AutoResearch",
   "repository": {
     "type": "git",
-    "url": "https://github.com/serendipityshe/dreamweaverai-autolab.git"
+    "url": "https://github.com/serendipityshe/AutoResearch.git"
   },
   "keywords": [
     "codex-plugin",

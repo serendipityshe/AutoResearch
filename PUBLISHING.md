@@ -78,7 +78,7 @@ This checks `marketplace.json` schema, source path traversal, and version consis
 Once the repo is pushed to GitHub, users add the marketplace and install the plugin:
 
 ```text
-/plugin marketplace add serendipityshe/dreamweaverai-autolab
+/plugin marketplace add serendipityshe/AutoResearch
 /plugin install dreamweaverai-autolab@dreamweaverai-autolab
 ```
 

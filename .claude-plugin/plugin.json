@@ -6,10 +6,10 @@
   "description": "Unified plugin packaging for adapter-based idea-to-paper research autopilot, PaperBanana, AutoLab, AutoBaseline, built-in Nature Skills writing, local experiment recording, and the Matrix-AutoLab dashboard.",
   "author": {
     "name": "Matrix-AutoLab Contributors",
-    "url": "https://github.com/serendipityshe/dreamweaverai-autolab"
+    "url": "https://github.com/serendipityshe/AutoResearch"
   },
-  "homepage": "https://github.com/serendipityshe/dreamweaverai-autolab",
-  "repository": "https://github.com/serendipityshe/dreamweaverai-autolab",
+  "homepage": "https://github.com/serendipityshe/AutoResearch",
+  "repository": "https://github.com/serendipityshe/AutoResearch",
   "license": "MIT-0",
   "keywords": [
     "autolab",
